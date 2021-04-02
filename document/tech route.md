@@ -43,8 +43,6 @@ STM32F100系列：Cortex-M3指令集，24MHz CPU，内置ADC与DAC，符合Kiss 
 | **stage 2** | 能够接收经过AFSK编码的信号，并将其解调为对应的数字信号； | 需要建立4.2中的测试环境                | 4.14-5.8  | 预测stage 2是本次项目的难点所在，可能需要花费较多时间。 |
 | **stage 3** | 能够接收来自APRS协议的UI帧并将其解码                     | 在真实物理硬件（对讲机）下测试         | 5.12-5.19 | 5.19-5.26依据当时实现情况进行安排                       |
 
-接收模拟信号的噪声问题（？）
-
 
 
 
@@ -56,9 +54,7 @@ STM32F100系列：Cortex-M3指令集，24MHz CPU，内置ADC与DAC，符合Kiss 
 上图分别展示了DAC（右侧）和ADC（左侧）的测试环境。其中重要的硬件/软件成分由黑笔画出，蓝色为注解，红色为测试逻辑。
 
 共同点：一台拥有音频输入/输出功能（隐含要求声卡有编码/解码的API）的计算机，以及其音频接口。
-这里我们假设是常见的 3.5 mm 耳机接口。尽管粗看资料显示 3.5 mm 耳机线的构造简单，但可能仍需进一步试验以确定与 STM 模拟引脚的 interfacing 方式。
-
-[构造](https://zh.wikipedia.org/wiki/TRS%E7%AB%AF%E5%AD%90)
+这里我们假设是常见的 3.5 mm 耳机接口（[构造](https://zh.wikipedia.org/wiki/TRS%E7%AB%AF%E5%AD%90)）。尽管粗看资料显示 3.5 mm 耳机线的构造简单，但可能仍需进一步试验以确定与 STM 模拟引脚的 interfacing 方式。
 
 ### 4.1 DAC测试环境
 
@@ -75,7 +71,7 @@ ADC（左侧）的测试环境中，电脑有一段给定的AFSK信号，以某�
 
 ### 发现的问题
 
-除了前面提到的，需要寻找一个聪明的对照方式，尽量自动化
+除了前面提到的，需要寻找一个聪明的对照方式，尽量自动化，即测试UI帧的接收与转发时最好同通过程序检验而不是通过观察比特流得来。
 
 
 
@@ -86,3 +82,8 @@ ADC（左侧）的测试环境中，电脑有一段给定的AFSK信号，以某�
   - https://github.com/robots/APRS/tree/master/bertos
 - Win/Linux声卡解码软件
   - https://github.com/wb2osz/direwolf
+
++ TNC测试用的CD 
+  + http://wa8lmf.net/TNCtest/ 
++ 一段AFSK APRS音频
+  + https://inst.eecs.berkeley.edu/~ee123/sp16/lab/lab5/ISSpkt.wav
