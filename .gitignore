@@ -1,0 +1,8 @@
+**/*.o
+**/*.elf
+**/*.bin
+**/Debug/
+**/.mxproject
+**/*.ld
+**/startup*
+.settings
