@@ -52,14 +52,13 @@ class AFSK_Generator {
 	static constexpr uint16_t S[] {11 * sine12bit.size() / 6, sine12bit.size()};
 	// state var
 	uint8_t symbol;
-	uint16_t trigs;
 
 	auto set_itvl() { // assume preload enabled
 		__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
 	}
 
 public:
-	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), symbol(1), trigs(0) { }
+	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), symbol(1) { }
 	AFSK_Generator(const AFSK_Generator&) = delete;
 	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
 	auto init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
@@ -67,7 +66,7 @@ public:
 		Channel = Channel_;
 		htim = htim_;
 		auto s1 = HAL_DAC_Start_DMA(hdac, Channel, (uint32_t *)sine12bit.begin(), sine12bit.size(), DAC_ALIGN_12B_R);
-		auto s2 = HAL_TIM_Base_Start_IT(htim);
+		auto s2 = HAL_TIM_Base_Start(htim);
 		return s1 != HAL_OK || s2 != HAL_OK;
 	}
 
@@ -79,13 +78,9 @@ public:
 	}
 
 	auto update() {
-		trigs++;
-		if (trigs == S[symbol] - 1) {
-			// next symbol
-			symbol = !symbol;
-			set_itvl();
-			trigs = 0;
-		}
+		// next symbol
+		symbol = !symbol;
+		set_itvl();
 	}
 	auto cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
 

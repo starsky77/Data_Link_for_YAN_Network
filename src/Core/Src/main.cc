@@ -58,7 +58,9 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	gen.update();
+	if (htim == &htim14) {
+		gen.update();
+	}
 }
 /* USER CODE END 0 */
 
@@ -93,6 +95,7 @@ int main(void)
   MX_DMA_Init();
   MX_DAC1_Init();
   MX_TIM6_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
   constexpr uint16_t PW = 25;
@@ -100,6 +103,8 @@ int main(void)
   // AFSK
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
   gen.resume_gen();
+  // 1200 Hz Time Base
+  HAL_TIM_Base_Start_IT(&htim14);
   /* USER CODE END 2 */
 
   /* Infinite loop */
