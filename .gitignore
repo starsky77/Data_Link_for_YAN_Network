@@ -3,6 +3,4 @@
 **/*.bin
 **/Debug/
 **/.mxproject
-**/*.ld
-**/startup*
 .settings
