@@ -19,9 +19,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dac.h"
 #include "dma.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -36,6 +38,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#ifdef __GNUC__
+/* With GCC, small printf (option LD Linker->Libraries->Small printf
+   set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,6 +58,7 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
+uint16_t ADC2_Value;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,6 +74,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		gen.update();
 	}
 }
+
+PUTCHAR_PROTOTYPE
+{
+    HAL_UART_Transmit(&huart1 , (uint8_t *)&ch, 1, 0xFFFF);
+    return ch;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -96,6 +115,8 @@ int main(void)
   MX_DAC1_Init();
   MX_TIM6_Init();
   MX_TIM14_Init();
+  MX_ADC_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
   constexpr uint16_t PW = 25;
@@ -115,8 +136,23 @@ int main(void)
     uint32_t t = HAL_GetTick();
     if (t >= led_tick + PW) {
       led_tick = t;
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
+    HAL_ADC_Start(&hadc);
+    HAL_ADC_PollForConversion(&hadc, 50);
+
+
+    HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", 7, 1000);
+    if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
+    {
+    	ADC2_Value = HAL_ADC_GetValue(&hadc);
+		printf("ADC2 Reading : %d \r\n",ADC2_Value);
+		printf("PA6 Voltage : %.4f \r\n",ADC2_Value*3.3f/4096);
+		printf("\r\n");
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
+    }
+    HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
