@@ -149,7 +149,6 @@ int main(void)
 		printf("ADC2 Reading : %d \r\n",ADC2_Value);
 		printf("PA6 Voltage : %.4f \r\n",ADC2_Value*3.3f/4096);
 		printf("\r\n");
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
     }
     HAL_Delay(10);
