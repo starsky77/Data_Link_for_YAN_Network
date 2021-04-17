@@ -45,10 +45,7 @@
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-<<<<<<< Updated upstream
 #endif /* __GNUC__ */
-=======
->>>>>>> Stashed changes
 
 /* USER CODE END PD */
 
@@ -61,10 +58,7 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 uint16_t ADC2_Value;
 /* USER CODE END PV */
 
@@ -88,12 +82,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
 		gen.update();
 	}
-}
-
-PUTCHAR_PROTOTYPE
-{
-    HAL_UART_Transmit(&huart1 , (uint8_t *)&ch, 1, 0xFFFF);
-    return ch;
 }
 
 /* USER CODE END 0 */
@@ -166,26 +154,8 @@ int main(void)
 		printf("\r\n");
 
     }
-<<<<<<< Updated upstream
     HAL_Delay(10);
-=======
 
-    HAL_ADC_Start(&hadc);
-    HAL_ADC_PollForConversion(&hadc, 50);
-
-
-    if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
-    {
-    	ADC2_Value = HAL_ADC_GetValue(&hadc);
-
-    	printf("ADC2 Reading : %d \r\n",ADC2_Value);
-    	printf("PA6 Voltage : %.4f \r\n",ADC2_Value*3.3f/4096);
-    	printf("\r\n");
-    }
-    HAL_Delay(1000);
-
-
->>>>>>> Stashed changes
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

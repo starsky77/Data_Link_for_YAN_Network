@@ -25,11 +25,7 @@ DAC1.IPParameters=DAC_Trigger
 ProjectManager.DefaultFWLocation=true
 NVIC.SVC_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 ProjectManager.DeletePrevious=true
-<<<<<<< Updated upstream
 USART1.IPParameters=VirtualMode-Asynchronous
-=======
-USART1.IPParameters=VirtualMode-Asynchronous,BaudRate
->>>>>>> Stashed changes
 PC13.GPIO_Label=LED
 PinOutPanel.RotationAngle=0
 RCC.FamilyName=M
