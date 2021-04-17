@@ -44,7 +44,7 @@ auto set_itvl() { // assume preload enabled
 
 如果打开 TIM6 的定时器中断，自己计数来控制 symbol 更新，则中断触发太过频繁，主程无法执行。
 
-TODO 贴一下示波器波形
+<img src="./img/DACs2.png" style="zoom:67%;" />
 
 
 
