@@ -50,6 +50,8 @@ TODO 贴一下示波器波形
 
 ## ADC部分
 
+### 轮询启用ADC进行测试
+
 工程从100转为051的工程，首先测试了ADC的使用，用轮询方式输出ADC寄存器对应数值（通过`HAL_ADC_GetValue`），分别将VCC以及GND引脚接入，显示如下：
 
 接vcc时，输出接近4096
@@ -62,3 +64,26 @@ TODO 贴一下示波器波形
 
 启用ADC的测试通过。
 
+
+
+### 尝试通过watchdog进行过零检测
+
+`HAL_ADC_LevelOutOfWindowCallback`函数可以在watchdog模式下，当ADC的输出超出某个阈值时会触发该回调函数，可以考虑使用watchdog来进行过零检测。
+
+但是尝试一段时间后发现无法触发该回调函数，因此重新尝试通过DMA来使用ADC。
+
+
+
+### 通过DMA采集ADC数据
+
+配置好ADC的DMA Request，Mode设置为`normal`，从而可以手动控制采样频率。
+
+主循环中的`HAL_ADC_Start`每次调用则会启动一次采样。中断回调函数函数`HAL_ADC_ConvCpltCallback`可以在每次ADC完成采样后触发中断。
+
+首先简单使用上述两种函数来通过DMA进行ADC的采样（主循环每进行一次则进行一次采样），并将ADC输入接入VCC和GND进行测试，测试结果与轮询的结果一致。
+
+
+
+### TODO：通过DMA采集ADC数据，进行过零检测
+
+可以在`HAL_ADC_ConvCpltCallback`中设置条件，保存先前的ADC寄存器的数值，记录其事件，并且在数值过零后通过一个全局变量来通知主函数过零事件的发生，来实现过零检测，进行该方法时需要计算一下采样频率，使得DMA不会漏掉部分过零的情况。
