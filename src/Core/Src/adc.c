@@ -35,6 +35,7 @@ void MX_ADC_Init(void)
   /* USER CODE END ADC_Init 0 */
 
   ADC_ChannelConfTypeDef sConfig = {0};
+  ADC_AnalogWDGConfTypeDef AnalogWDGConfig = {0};
 
   /* USER CODE BEGIN ADC_Init 1 */
 
@@ -42,14 +43,14 @@ void MX_ADC_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.ContinuousConvMode = ENABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -65,6 +66,17 @@ void MX_ADC_Init(void)
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure the analog watchdog
+  */
+  AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REG;
+  AnalogWDGConfig.Channel = ADC_CHANNEL_6;
+  AnalogWDGConfig.ITMode = DISABLE;
+  AnalogWDGConfig.HighThreshold = 0;
+  AnalogWDGConfig.LowThreshold = 0;
+  if (HAL_ADC_AnalogWDGConfig(&hadc, &AnalogWDGConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -94,6 +106,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
     /* ADC1 interrupt Init */
     HAL_NVIC_SetPriority(ADC1_COMP_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(ADC1_COMP_IRQn);

@@ -25,6 +25,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -139,22 +140,23 @@ int main(void)
     uint32_t t = HAL_GetTick();
     if (t >= led_tick + PW) {
       led_tick = t;
-      //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     HAL_ADC_Start(&hadc);
     HAL_ADC_PollForConversion(&hadc, 50);
 
 
-    HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", 7, 1000);
-    if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
+      if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
     {
     	ADC2_Value = HAL_ADC_GetValue(&hadc);
-		printf("ADC2 Reading : %d \r\n",ADC2_Value);
-		printf("PA6 Voltage : %.4f \r\n",ADC2_Value*3.3f/4096);
-		printf("\r\n");
+    	char c[256];
+		sprintf(c,"ADC2: %d \r\n", ADC2_Value);
+		HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
+
+//		HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", sizeof("Hello\r\n"), 1000);
 
     }
-    HAL_Delay(10);
+    HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
