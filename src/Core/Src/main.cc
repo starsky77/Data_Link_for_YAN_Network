@@ -60,7 +60,7 @@
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
 
-uint16_t ADC2_Value;
+uint16_t ADC2_Value[1];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,6 +130,7 @@ int main(void)
   gen.resume_gen();
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
+  HAL_ADCEx_Calibration_Start(&hadc);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -142,21 +143,25 @@ int main(void)
       led_tick = t;
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
-    HAL_ADC_Start(&hadc);
-    HAL_ADC_PollForConversion(&hadc, 50);
 
 
-      if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
-    {
-    	ADC2_Value = HAL_ADC_GetValue(&hadc);
-    	char c[256];
-		sprintf(c,"ADC2: %d \r\n", ADC2_Value);
-		HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
 
-//		HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", sizeof("Hello\r\n"), 1000);
-
-    }
-    HAL_Delay(1000);
+//    HAL_ADC_Start(&hadc);
+//    HAL_ADC_PollForConversion(&hadc, 50);
+//
+//
+//      if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
+//    {
+//    	ADC2_Value = HAL_ADC_GetValue(&hadc);
+//    	char c[256];
+//		sprintf(c,"ADC2: %d \r\n", ADC2_Value);
+//		HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
+//
+////		HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", sizeof("Hello\r\n"), 1000);
+//
+//    }
+    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
+    HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -203,6 +208,12 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+	char c[256];
+	sprintf(c,"ADC2: %d \r\n", ADC2_Value[0]);
+	HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
+}
 
 /* USER CODE END 4 */
 
