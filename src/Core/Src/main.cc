@@ -83,6 +83,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
 		gen.update();
 	}
+	if (htim == &htim2){
+		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
+	}
 }
 
 /* USER CODE END 0 */
@@ -121,6 +124,7 @@ int main(void)
   MX_TIM14_Init();
   MX_ADC_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
   constexpr uint16_t PW = 25;
@@ -145,23 +149,7 @@ int main(void)
     }
 
 
-
-//    HAL_ADC_Start(&hadc);
-//    HAL_ADC_PollForConversion(&hadc, 50);
-//
-//
-//      if(HAL_IS_BIT_SET(HAL_ADC_GetState(&hadc), HAL_ADC_STATE_REG_EOC))
-//    {
-//    	ADC2_Value = HAL_ADC_GetValue(&hadc);
-//    	char c[256];
-//		sprintf(c,"ADC2: %d \r\n", ADC2_Value);
-//		HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
-//
-////		HAL_UART_Transmit(&huart1, (uint8_t *)"Hello\r\n", sizeof("Hello\r\n"), 1000);
-//
-//    }
     HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
-    HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -207,12 +195,25 @@ void SystemClock_Config(void)
   }
 }
 
+uint32_t last_adc, now_adc;
+uint32_t last_zero, now_zero, interval_zero;
+
 /* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-	char c[256];
-	sprintf(c,"ADC2: %d \r\n", ADC2_Value[0]);
-	HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c), 1000);
+	now_adc = ADC2_Value[0];
+	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
+		now_zero = HAL_GetTick();
+		interval_zero = now_zero - last_zero;
+		last_zero = now_zero;
+
+		char c[256];
+		// time base is 50 us
+		sprintf(c,"%d \r\n", interval_zero);
+		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
+	}
+	last_adc = now_adc;
+
 }
 
 /* USER CODE END 4 */
