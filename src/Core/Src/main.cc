@@ -84,8 +84,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		gen.update();
 	}
 	if (htim == &htim2){
+		// start DMA
 		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 	}
+
 }
 
 /* USER CODE END 0 */
@@ -196,7 +198,7 @@ void SystemClock_Config(void)
 }
 
 uint32_t last_adc, now_adc;
-uint32_t last_zero, now_zero, interval_zero;
+uint16_t last_zero, now_zero, interval_zero;
 
 /* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
@@ -204,7 +206,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	now_adc = ADC2_Value[0];
 	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
 		now_zero = HAL_GetTick();
-		interval_zero = now_zero - last_zero;
+		if(now_zero > last_zero)
+			interval_zero = now_zero - last_zero;
+		else
+			interval_zero = now_zero - last_zero + 0x10000;
 		last_zero = now_zero;
 
 		char c[256];
