@@ -136,6 +136,7 @@ int main(void)
   gen.resume_gen();
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
+  HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADCEx_Calibration_Start(&hadc);
   /* USER CODE END 2 */
 
@@ -151,7 +152,7 @@ int main(void)
     }
 
 
-    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
+//    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 
     /* USER CODE END WHILE */
 
