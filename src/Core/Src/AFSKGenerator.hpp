@@ -9,6 +9,7 @@
 #define SRC_AFSKGENERATOR_
 
 #include "main.h"
+#include "CircularQueue.hpp"
 #include <stdint.h>
 #include <array>
 
@@ -51,38 +52,60 @@ class AFSK_Generator {
 	// the same time slot for 2 symbols
 	static constexpr uint16_t S[] {11 * sine12bit.size() / 6, sine12bit.size()};
 	// state var
-	uint8_t symbol;
-
-	auto set_itvl() { // assume preload enabled
-		__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
-	}
+	bool transmit;
+//	uint8_t byte;
+//	uint8_t mask;
+	CircularQueue<char, 255> q;
 
 public:
-	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), symbol(1) { }
+	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), transmit(false) { } // , byte(0)
 	AFSK_Generator(const AFSK_Generator&) = delete;
 	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
-	auto init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
+
+	bool init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
 		hdac = hdac_;
 		Channel = Channel_;
 		htim = htim_;
 		auto s1 = HAL_DAC_Start_DMA(hdac, Channel, (uint32_t *)sine12bit.begin(), sine12bit.size(), DAC_ALIGN_12B_R);
+		__HAL_DAC_DISABLE(hdac, Channel);
 		auto s2 = HAL_TIM_Base_Start(htim);
 		return s1 != HAL_OK || s2 != HAL_OK;
 	}
 
-	auto resume_gen() {
-		__HAL_DAC_ENABLE(hdac, Channel);
-	}
-	auto pause_gen() {
-		__HAL_DAC_DISABLE(hdac, Channel);
+	auto requestTx(const char* buf, size_t len) {
+		return q.fifo_put(buf, len);
 	}
 
-	auto update() {
-		// next symbol
-		symbol = !symbol;
-		set_itvl();
+	void Tx_on() {
+		transmit = true;
 	}
-	auto cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
+	void Tx_off() {
+		transmit = false;
+	}
+	bool dac_enabled() {
+		return hdac->Instance->CR & (DAC_CR_EN1 << Channel) != 0;
+	}
+	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
+
+	auto update() {
+		static uint8_t symbol = 0;
+		// turn dac on/off
+		if (dac_enabled() != transmit) {
+			if (transmit) {
+				__HAL_DAC_ENABLE(hdac, Channel);
+			}
+			else {
+				__HAL_DAC_DISABLE(hdac, Channel);
+			}
+		}
+		// Tx
+		if (transmit) {
+			// get next symbol
+			symbol = !symbol;
+			// config to Tx this symbol; assume preload enabled
+			__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
+		}
+	}
 
 	~AFSK_Generator() {
 		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();

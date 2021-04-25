@@ -25,11 +25,12 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
 #include "AFSKGenerator.hpp"
+#include "DebouncedGpio.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,14 +40,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#ifdef __GNUC__
-/* With GCC, small printf (option LD Linker->Libraries->Small printf
-   set to 'Yes') calls __io_putchar() */
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
 
 /* USER CODE END PD */
 
@@ -59,7 +52,9 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
-
+DebouncedGpio_IT btn_in{BTN_GPIO_Port, BTN_Pin};
+EdgeDetector btn{1};
+// ADC
 uint16_t ADC2_Value[1];
 /* USER CODE END PV */
 
@@ -71,12 +66,18 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-PUTCHAR_PROTOTYPE
-{
-    HAL_UART_Transmit(&huart1 , (uint8_t *)&ch, 1, 0xFFFF);
-    return ch;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == BTN_Pin) {
+		if (btn.detect(btn_in.update()) < 0) {
+			// btn pressed
+			if (gen.dac_enabled()) {
+				gen.Tx_off();
+			}
+			else {
+				gen.Tx_on();
+			}
+		}
+	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
@@ -128,14 +129,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  // sync ctrl
+  // low freq pulse gen
   constexpr uint16_t PW = 25;
   uint32_t led_tick = HAL_GetTick();
-  // AFSK
+  // AFSK gen
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
-  gen.resume_gen();
+  gen.Tx_on();
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
+  // ADC _
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADCEx_Calibration_Start(&hadc);
   /* USER CODE END 2 */
@@ -161,7 +163,6 @@ int main(void)
   /* USER CODE END 3 */
 }
 
-
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -170,6 +171,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -196,12 +198,18 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
+/* USER CODE BEGIN 4 */
 uint32_t last_adc, now_adc;
 uint16_t last_zero, now_zero, interval_zero;
 
-/* USER CODE BEGIN 4 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	now_adc = ADC2_Value[0];
