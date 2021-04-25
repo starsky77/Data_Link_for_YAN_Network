@@ -49,7 +49,7 @@ class DebouncedGpio_IT {
 	GPIO_PinState last = GPIO_PIN_SET, out = last;
 	uint32_t hold_timeout = 0;
 	// input filter delay in ticks
-	static constexpr int HOLD_DELAY = 20;
+	static constexpr int HOLD_DELAY = 20 * 50; // TODO 20 ms
 public:
 	DebouncedGpio_IT(GPIO_TypeDef *GPIOx_, uint16_t GPIO_Pin_) : GPIOx(GPIOx_), GPIO_Pin(GPIO_Pin_) {}
 	DebouncedGpio_IT(const DebouncedGpio_IT&) = delete;

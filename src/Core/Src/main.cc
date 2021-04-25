@@ -51,9 +51,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-AFSK_Generator gen;
+// shared
+CircularQueue<char, 255> chars;
 DebouncedGpio_IT btn_in{BTN_GPIO_Port, BTN_Pin};
 EdgeDetector btn{1};
+// DAC
+AFSK_Generator gen;
 // ADC
 uint16_t ADC2_Value[1];
 /* USER CODE END PV */
@@ -66,6 +69,28 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/* C++ function engaged to overload output facility.
+ * designed to be both non-blocking and transmitting ASAP,
+ * using CircularQueue
+ */
+extern "C" int _write(int file, char *ptr, int len) {
+	// mv data to buffer
+	return chars.fifo_put(ptr, len);
+}
+
+void SysTick_write_Callback(void) {
+	// DMA Tx the whole buffer or to buffer end
+	auto sz = chars.continuous_sgmt_size();
+	auto s = HAL_UART_Transmit_DMA(&huart1, (uint8_t *)(chars.elements+chars.head), sz);
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+	if (huart == &huart1) {
+		chars.head = (chars.head+huart->TxXferSize) % (chars.max_size()+1);
+	}
+}
+
+// toggle Tx
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == BTN_Pin) {
 		if (btn.detect(btn_in.update()) < 0) {
@@ -83,6 +108,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
 		gen.update();
+		SysTick_write_Callback();
 	}
 	if (htim == &htim2){
 		// start DMA
@@ -221,10 +247,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 			interval_zero = now_zero - last_zero + 0x10000;
 		last_zero = now_zero;
 
-		char c[256];
 		// time base is 50 us
-		sprintf(c,"%d \r\n", interval_zero);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
+		printf("%d \r\n", interval_zero);
 	}
 	last_adc = now_adc;
 
