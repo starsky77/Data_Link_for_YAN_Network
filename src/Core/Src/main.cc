@@ -91,14 +91,14 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 // toggle Tx
+static uint8_t square[150] {};
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == BTN_Pin) {
 		if (btn.detect(btn_in.update()) < 0) {
 			// btn pressed
-			if (gen.dac_enabled()) {
-				gen.Tx_off();
-			}
-			else {
+			gen.requestTx(square, 150);
+			if (!gen.dac_enabled()) {
 				gen.Tx_on();
 			}
 		}
@@ -160,7 +160,9 @@ int main(void)
   uint32_t led_tick = HAL_GetTick();
   // AFSK gen
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
-  gen.Tx_on();
+  for (int i = 0; i < 150; i++) {
+	  square[i] = 0x55;
+  }
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
   // ADC _

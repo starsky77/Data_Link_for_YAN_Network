@@ -9,7 +9,8 @@
 #define SRC_CIRCULARQUEUE_HPP_
 
 #include "main.h"
-#include <functional>
+#include <algorithm>
+#include <string.h>
 
 constexpr unsigned roundup_pow_of_two(unsigned x) {
 	unsigned pow = 1;

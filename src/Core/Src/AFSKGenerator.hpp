@@ -53,12 +53,17 @@ class AFSK_Generator {
 	static constexpr uint16_t S[] {11 * sine12bit.size() / 6, sine12bit.size()};
 	// state var
 	bool transmit;
-//	uint8_t byte;
-//	uint8_t mask;
-	CircularQueue<char, 255> q;
+	uint8_t byte;
+	uint8_t mask;
+	CircularQueue<uint8_t, 255> q;
+
+	void Tx_symbol(uint8_t symbol) {
+		// config to Tx this symbol; assume preload enabled
+		__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
+	}
 
 public:
-	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), transmit(false) { } // , byte(0)
+	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), transmit(false), byte(0), mask(0x80) { } //
 	AFSK_Generator(const AFSK_Generator&) = delete;
 	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
 
@@ -72,7 +77,7 @@ public:
 		return s1 != HAL_OK || s2 != HAL_OK;
 	}
 
-	auto requestTx(const char* buf, size_t len) {
+	auto requestTx(const uint8_t* buf, size_t len) {
 		return q.fifo_put(buf, len);
 	}
 
@@ -89,6 +94,10 @@ public:
 
 	auto update() {
 		static uint8_t symbol = 0;
+		// nothing to Tx
+		if (mask == 0x80 && q.empty()) {
+			Tx_off();
+		}
 		// turn dac on/off
 		if (dac_enabled() != transmit) {
 			if (transmit) {
@@ -100,10 +109,16 @@ public:
 		}
 		// Tx
 		if (transmit) {
+			if (mask == 0x80) {
+				// get next byte
+				byte = q.front();
+				q.pop();
+			}
+			mask = mask << 1 | mask >> 7; // rol
 			// get next symbol
-			symbol = !symbol;
+			symbol = (byte & mask) != 0;
 			// config to Tx this symbol; assume preload enabled
-			__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
+			Tx_symbol(symbol);
 		}
 	}
 
