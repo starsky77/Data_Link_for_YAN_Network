@@ -140,7 +140,7 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
-  constexpr uint16_t PW = 500;
+  constexpr uint16_t PW = 10000;
   uint32_t led_tick = HAL_GetTick();
   // AFSK
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);

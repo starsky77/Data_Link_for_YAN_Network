@@ -18,10 +18,10 @@ class KISS_Receiver{
 	uint16_t receive_count_ = 0;
 	uint16_t handle_count_ = 0;
 
-	uint16_t start_pos_ = 0;
+	uint16_t end_pos_ = 0;
 
 	enum state{
-		INIT, ING, END
+		INIT, ING, ESC
 	};
 	uint8_t state = INIT;
 public:
@@ -61,47 +61,47 @@ public:
 			case INIT:
 				if(buffer_[handle_count_] == FEND){
 					state = ING;
-					start_pos_ = handle_count_;
+					//! TODO maybe add FEND into string
 				}
 				break;
 			case ING:
 				if(buffer_[handle_count_] == FEND){
 					state = INIT;
-					send_to_audio(handle_count_);
-					start_pos_ = handle_count_;
+					send_to_audio(end_pos_);
+					end_pos_ = 0;
+				}
+				else if(buffer_[handle_count_] == FESC){
+					state = ESC;
+				}
+				else{
+					result_[end_pos_++] = buffer_[handle_count_];
 				}
 				break;
-			case END:
+			case ESC:
+				if(buffer_[handle_count_] == TFESC){
+					state = ING;
+					result_[end_pos_++] = FESC;
+				}
+				else if (buffer_[handle_count_] == TFEND){
+					state = ING;
+					result_[end_pos_++] = FEND;
+				}
 				break;
 		}
 		handle_count_ = (handle_count_+1)%length_;
+		end_pos_ = end_pos_%length_;
 	}
 
 	void send_to_audio(uint16_t end_pos){
 		  char c[length_];
-		  if(end_pos > start_pos_){
-			  sprintf(c, "%s", buffer_+start_pos_);
-			  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos-start_pos_+1);
-		  }
-		  else{
-			  char c[length_];
-			  uint32_t k = 0;
-			  while(start_pos_+k < length_){
-				  c[k] = buffer_[start_pos_ + k];
-				  k++;
-			  }
-			  while(k-(length_-start_pos_) <= end_pos){
-				  c[k] = buffer_[k-(length_-start_pos_)];
-				  k++;
-			  }
-			  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos+1+length_-start_pos_+1);
-		  }
+		  memcpy(c, result_, end_pos_+1);
+		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
 	}
 
 	void send_to_host(char* in, uint32_t ilen){
 	      char out[length_];
 	      uint32_t len = encapsulate(in, ilen, out);
-	      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)out, len);
+	      HAL_UART_Transmit_DMA(huart_, (uint8_t *)out, len);
 	}
 
 	uint32_t encapsulate(char* in, uint32_t ilen, char* out)
