@@ -60,7 +60,7 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
-KISS_Receiver rec; // for test
+KISS_Receiver kiss; // for test
 
 uint16_t ADC2_Value[1];
 uint16_t ticks;
@@ -140,7 +140,7 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
-  constexpr uint16_t PW = 250;
+  constexpr uint16_t PW = 500;
   uint32_t led_tick = HAL_GetTick();
   // AFSK
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
@@ -162,9 +162,12 @@ int main(void)
     if (t >= led_tick + PW) {
       led_tick = t;
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
+      char in[] = {'\x46','\x49','\xC0','\x45'};
+      kiss.send_to_host(in, sizeof(in));
     }
 
-    rec.handle_buffer();
+    kiss.handle_buffer();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -240,8 +243,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   /* NOTE: This function should not be modified, when the callback is needed,
            the HAL_UART_RxCpltCallback could be implemented in the user file
    */
-  rec.receive_byte(rDataBuffer[0]);
-//  rec.receive_multi_bytes(rDataBuffer, 1);
+//  kiss.receive_byte(rDataBuffer[0]);
+  kiss.receive_multi_bytes(rDataBuffer, 1);
+//  HAL_UART_Transmit_DMA(&huart1, rDataBuffer, 1);
   HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
 }
 

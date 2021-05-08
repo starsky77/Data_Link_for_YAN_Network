@@ -13,6 +13,8 @@ class KISS_Receiver{
 	UART_HandleTypeDef * huart_ = &huart1;
 	static const uint32_t length_=1024;
 	uint8_t buffer_[length_];
+	uint8_t result_[length_];
+
 	uint16_t receive_count_ = 0;
 	uint16_t handle_count_ = 0;
 
@@ -65,7 +67,8 @@ public:
 			case ING:
 				if(buffer_[handle_count_] == FEND){
 					state = INIT;
-					send_package(handle_count_);
+					send_to_audio(handle_count_);
+					start_pos_ = handle_count_;
 				}
 				break;
 			case END:
@@ -74,7 +77,7 @@ public:
 		handle_count_ = (handle_count_+1)%length_;
 	}
 
-	void send_package(uint16_t end_pos){
+	void send_to_audio(uint16_t end_pos){
 		  char c[length_];
 		  if(end_pos > start_pos_){
 			  sprintf(c, "%s", buffer_+start_pos_);
@@ -91,11 +94,40 @@ public:
 				  c[k] = buffer_[k-(length_-start_pos_)];
 				  k++;
 			  }
-			  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos+length_-start_pos_+1);
+			  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos+1+length_-start_pos_+1);
 		  }
 	}
+
+	void send_to_host(char* in, uint32_t ilen){
+	      char out[length_];
+	      uint32_t len = encapsulate(in, ilen, out);
+	      HAL_UART_Transmit_DMA(&huart1, (uint8_t *)out, len);
+	}
+
+	uint32_t encapsulate(char* in, uint32_t ilen, char* out)
+	{
+		uint8_t olen;
+		uint8_t j;
+		olen = 0;
+		out[olen++] = FEND;
+		for (j=0; j<ilen; j++) {
+
+		  if (in[j] == FEND) {
+		    out[olen++] = FESC;
+		    out[olen++] = TFEND;
+		  }
+		  else if (in[j] == FESC) {
+		    out[olen++] = FESC;
+		    out[olen++] = TFESC;
+		  }
+		  else {
+		    out[olen++] = in[j];
+		  }
+		}
+		out[olen++] = FEND;
+		return (olen);
+	}
+
 };
-
-
 
 #endif /* SRC_KISSRECEIVER_HPP_ */
