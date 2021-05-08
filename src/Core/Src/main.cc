@@ -30,6 +30,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "AFSKGenerator.hpp"
+#include "KISSReceiver.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,8 +60,17 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
+KISS_Receiver rec; // for test
 
 uint16_t ADC2_Value[1];
+uint16_t ticks;
+
+
+uint8_t rData[512];  //  for saving RX Data
+uint8_t rDataBuffer[1];  //  RX Data buffer
+uint8_t rDataCount = 0;  //  count Data bytes
+uint8_t rDataFlag = 0;  //  waitting complete RX date having been send
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -86,6 +96,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim2){
 		// start DMA
 		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
+//		ticks++;
 	}
 
 }
@@ -129,11 +140,13 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
-  constexpr uint16_t PW = 25;
+  constexpr uint16_t PW = 250;
   uint32_t led_tick = HAL_GetTick();
   // AFSK
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
   gen.resume_gen();
+  // KISS
+  HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
   HAL_TIM_Base_Start_IT(&htim2);
@@ -151,9 +164,7 @@ int main(void)
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
 
-
-//    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
-
+    rec.handle_buffer();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -206,7 +217,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	now_adc = ADC2_Value[0];
 	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
-		now_zero = HAL_GetTick();
+		now_zero = ticks; //HAL_GetTick();
 		if(now_zero > last_zero)
 			interval_zero = now_zero - last_zero;
 		else
@@ -220,6 +231,18 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	}
 	last_adc = now_adc;
 
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(huart);
+  /* NOTE: This function should not be modified, when the callback is needed,
+           the HAL_UART_RxCpltCallback could be implemented in the user file
+   */
+  rec.receive_byte(rDataBuffer[0]);
+//  rec.receive_multi_bytes(rDataBuffer, 1);
+  HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
 }
 
 /* USER CODE END 4 */
