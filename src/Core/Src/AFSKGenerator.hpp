@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <array>
 
+
 class AFSK_Generator {
 	// HW handle operated on
 	DAC_HandleTypeDef *hdac;

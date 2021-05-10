@@ -8,12 +8,17 @@
 #define SRC_KISSRECEIVER_HPP_
 
 #include "main.h"
+#include "AFSKGenerator.hpp"
+
+static char c[1024];
+extern AFSK_Generator gen;
 
 class KISS_Receiver{
 	UART_HandleTypeDef * huart_ = &huart1;
 	static const uint32_t length_=1024;
 	uint8_t buffer_[length_];
 	uint8_t result_[length_];
+
 
 	uint16_t receive_count_ = 0;
 	uint16_t handle_count_ = 0;
@@ -39,7 +44,11 @@ public:
 	//! Sent as FESC TFESC
 	char TFESC = '\xDD';
 
-	KISS_Receiver(): huart_(&huart1), FEND('\xC0'), FESC('\xDB'), TFEND('\xDC'), TFESC('\xDD') { }
+
+//	KISS_Receiver(): huart_(&huart1), FEND('\xC0'), FESC('\xDB'), TFEND('\xDC'), TFESC('\xDD') { }
+	KISS_Receiver(UART_HandleTypeDef* huart){
+		huart_ = huart;
+	}
 
 	void receive_byte(uint8_t ch){
 		buffer_[receive_count_] = ch;
@@ -93,15 +102,31 @@ public:
 	}
 
 	void send_to_audio(uint16_t end_pos){
-		  char c[length_];
 		  memcpy(c, result_, end_pos_+1);
+		  gen.requestTx((uint8_t*)c, end_pos_);
+		  if (!gen.dac_enabled()) {
+				gen.Tx_on();
+		  }
 		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
 	}
+
+//	void send_to_audio(uint16_t end_pos){
+//		  char c[length_];
+//		  memcpy(c, result_, end_pos_+1);
+//		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
+//	}
+
 
 	void send_to_host(char* in, uint32_t ilen){
 	      char out[length_];
 	      uint32_t len = encapsulate(in, ilen, out);
 	      HAL_UART_Transmit_DMA(huart_, (uint8_t *)out, len);
+
+	      //JXR for test
+		  gen.requestTx((uint8_t*)out, len);
+	      if (!gen.dac_enabled()) {
+	      				gen.Tx_on();
+	      }
 	}
 
 	uint32_t encapsulate(char* in, uint32_t ilen, char* out)

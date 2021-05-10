@@ -58,7 +58,7 @@ DebouncedGpio_IT btn_in{BTN_GPIO_Port, BTN_Pin};
 EdgeDetector btn{1};
 // DAC
 AFSK_Generator gen;
-KISS_Receiver kiss; // for test
+KISS_Receiver kiss(&huart1); // for test
 uint16_t ADC2_Value[1];
 uint16_t ticks;
 
@@ -117,7 +117,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
 		gen.update();
-		SysTick_write_Callback();
+//		SysTick_write_Callback();
 	}
 	if (htim == &htim2){
 		// start DMA
@@ -166,7 +166,7 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
-  constexpr uint16_t PW = 10000;
+  constexpr uint16_t PW = 10;
   uint32_t led_tick = HAL_GetTick();
   // AFSK gen
   gen.init(&hdac1, DAC_CHANNEL_1, &htim6);
