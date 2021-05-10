@@ -193,7 +193,7 @@ int main(void)
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
       char in[] = {'\x46','\x49','\xC0','\x45'};
-      kiss.send_to_host(in, sizeof(in));
+//      kiss.send_to_host(in, sizeof(in));
     }
 
     kiss.handle_buffer();
