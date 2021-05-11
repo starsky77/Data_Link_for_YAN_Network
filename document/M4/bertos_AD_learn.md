@@ -1,3 +1,5 @@
+# Bertos demodulation 
+
 Bertos的解调有三种形式的滤波来实现：
 
 afsk.h
@@ -46,4 +48,35 @@ static int8_t fir_filter(int8_t s, enum fir_filters f)
 
 解调的过程见函数`void afsk_adc_isr(Afsk *af, int8_t curr_sample)`。
 
-先不说这个滤波的过程是怎么样的，我很好奇这个工程是怎么表示采样的数据的`int8_t curr_sample`，是怎么得到的？
+
+
+
+
+
+
+# About DFT(FFT)
+
+看FFT一脸懵逼，DFT相对还能理解（自动忽略数学推导过程）
+
+
+
+**DFT：**
+
+输入：N个采样点对应的数值；
+
+输出：一组复数$X[k_c]$;
+
+通过一个公式可以找到对应的频率在采样值中的分量:
+$$
+f=k_cf_s/N
+$$
+其中$f$为对应的频率，$f_s$是我们采样的频率，N是采样点数量；因此根据需要的$f$反求出$K_c$带入$X[k_c]$去找对应的实部的值（虚部会在计算中被消掉，这就是数学问题了，总之频率分量不考虑实部）。
+
+
+
+推荐相关资料：
+
+[用离散傅里叶变换解调数字调制信号 - 百度文库 (baidu.com)](https://wenku.baidu.com/view/014de46627d3240c8447ef3e.html)
+
+[傅里叶变换学习心得 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/66117227)
+
