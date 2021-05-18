@@ -50,6 +50,7 @@ HAL_StatusTypeDef Xmodem_Receive (uint32_t dst)
 							response = ACK;
 							//写数据
 							memcpy((uint8_t *)dst, &PacketData[PACKET_DATA_INDEX], packet_length);
+							dst += packet_length;
 							++seq;
 						}
 						else if (PacketData[PACKET_NUMBER_INDEX] == seq-1) // prev recved
