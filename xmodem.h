@@ -24,17 +24,16 @@
 #define PACKET_TRAILER_SIZE     ((uint32_t)1)
 #define PACKET_OVERHEAD_SIZE    (PACKET_HEADER_SIZE + PACKET_TRAILER_SIZE - 1)
 
-#define PACKET_SIZE             ((uint32_t)128)
+#define PACKET_SIZE             128
 
-#define FRAME_TIMEOUT						((uint32_t)1000)
+#define FRAME_TIMEOUT				3000
 #define TX_TIMEOUT          		((uint32_t)100)
 #define RX_TIMEOUT          		((uint32_t)100)
 
-#define MAX_ERRORS              ((uint8_t)15)
+#define MAX_ERRORS              15
 
 HAL_StatusTypeDef Xmodem_Receive (uint32_t dst);
 
-static HAL_StatusTypeDef ReceivePacket(uint8_t *p_data, uint32_t *p_length);
 extern HAL_StatusTypeDef Serial_PutByte(uint8_t param);
 uint8_t CalcChecksum(const uint8_t *p_data, uint32_t size);
 uint16_t Cal_CRC16(const uint8_t* p_data, uint32_t size);
