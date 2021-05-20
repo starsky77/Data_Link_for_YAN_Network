@@ -27,7 +27,7 @@ private:
 	uint32_t sampleFrequency;
 public:
 	Demodulator(uint32_t samplePointsNumber, uint32_t Frequency,
-			uint32_t threshold) :
+			double threshold) :
 			maxSamplePoint(samplePointsNumber), sampleFrequency(Frequency), FcomponentThreshold(
 					threshold) {
 		sampleBufferCount = 0;
@@ -40,7 +40,7 @@ public:
 			bitBuffer_inpure[i] = 0;
 		}
 	}
-	~Demodulator();
+	~Demodulator(){ };
 	//采样点传入sampleBuffer中
 	void sampleBufferInput(uint32_t samplePoint) {
 		sampleBuffer[sampleBufferCount] = samplePoint;
@@ -68,16 +68,17 @@ public:
 		uint32_t Component_1200 = result[index_1200].real();
 		uint32_t Component_2200 = result[index_2200].real();
 		//Debug
+		//Problem 这一段不能在实际使用时出现，因为效率极低
 		char c[256];
 		sprintf(c, "1200Hz:%d \r\n", Component_1200);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t*) c, strlen(c));
+		HAL_UART_Transmit_IT(&huart1, (uint8_t*) c, strlen(c));
 		sprintf(c, "2200Hz:%d \r\n", Component_2200);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t*) c, strlen(c));
+		HAL_UART_Transmit_IT(&huart1, (uint8_t*) c, strlen(c));
 
 		//Preamble尚未完成，如果bitBuffer溢出就强制清空
 		if (bitBufferCount > BIT_BUFFER_SZIE) {
-			c = "Bit buffer has overflowed!\r\n";
-			HAL_UART_Transmit_DMA(&huart1, (uint8_t*) c, strlen(c));
+			char error[256] = "Bit buffer has overflowed!\r\n";
+			HAL_UART_Transmit_DMA(&huart1, (uint8_t*) error, strlen(error));
 			bitBufferCount = 0;
 			for (int i = 0; i < BIT_BUFFER_SZIE; i++) {
 				bitBuffer[i] = 0;
@@ -89,21 +90,23 @@ public:
 		//两个频率分量都超阈值，记录为非纯部分，返回2，bitBuffer中按照0算
 		if (Component_1200 > FcomponentThreshold
 				&& Component_2200 > FcomponentThreshold) {
-			bitBuffer_inpure[bitBuffer] = 1;
-			bitBuffer[bitBuffCount] = 0;
+			bitBuffer_inpure[bitBufferCount] = 1;
+			bitBuffer[bitBufferCount] = 0;
 			bitBufferCount++;
 			return 2;
 		}
 
 		if (Component_1200 > FcomponentThreshold) {
-			bitBuffer[bitBuffCount] = 0;
+			bitBuffer[bitBufferCount] = 0;
 			bitBufferCount++;
 			return 0;
 		} else if (Component_2200 > FcomponentThreshold) {
-			bitBuffer[bitBuffCount] = 1;
+			bitBuffer[bitBufferCount] = 1;
 			bitBufferCount++;
 			return 1;
 		}
+
+
 
 	}
 

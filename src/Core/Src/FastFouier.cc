@@ -27,7 +27,7 @@ int reverseBits(unsigned short digitsCount, int value)
 //input sample:f;  number of sample i_max;  output:F; FFT or IFFT:ftd (IFFT may not be used in this project)
 void discreteFourierFast(const complex<double>* f, int i_max, complex<double>* F, fourier_transform_direction ftd)
 {
-	if (i_max <= 0 || ((i_max & (i_max - 1)) != 0)) throw INCORRECT_SPECTRUM_SIZE_FOR_FFT;
+	//if (i_max <= 0 || ((i_max & (i_max - 1)) != 0)) throw INCORRECT_SPECTRUM_SIZE_FOR_FFT;
 
 	double norm, exp_dir;
 	switch (ftd)
@@ -40,8 +40,8 @@ void discreteFourierFast(const complex<double>* f, int i_max, complex<double>* F
 		norm = 1.0 / i_max;
 		exp_dir = 1;
 		break;
-	default:
-		throw UNSUPPORTED_FTD;
+	//default:
+		//throw UNSUPPORTED_FTD;
 	}
 
 	int NN = i_max, digitsCount = 0;
