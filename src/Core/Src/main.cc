@@ -61,7 +61,7 @@
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
 //Demodulator demod(50,1000000,0.1);
-Demodulator demod(50,120000,0.1);
+//Demodulator demod(50,120000,0.1);
 
 uint16_t ADC2_Value[1];
 /* USER CODE END PV */
@@ -87,10 +87,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		gen.update();
 	}
 
-	if (htim == &htim2){
+	else if (htim == &htim2){
+//	    char c[256];
+//		sprintf(c,"%d \r\n", 123);
+//		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
+
+		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 		// start DMA
 		//Problem:执行下面这段代码会导致程序停止运行，无论ADC回调函数中是否有内容
-		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 	}
 
 
@@ -147,9 +151,6 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADCEx_Calibration_Start(&hadc);
   /* USER CODE END 2 */
-  	char c[256];
-	sprintf(c,"%d \r\n", 123);
-	HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -161,10 +162,9 @@ int main(void)
       led_tick = t;
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
-    char c[256];
-	sprintf(c,"%d \r\n", 123);
-	HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
 
+
+    //HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 
 //    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 
@@ -219,25 +219,25 @@ uint16_t last_zero, now_zero, interval_zero;
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	//未验证以下内容，因为甚至无法进行这一阶段；
-	now_adc = ADC2_Value[0];
-	demod.sampleBufferInput(now_adc);
-
-
 //	now_adc = ADC2_Value[0];
-//	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
-//		now_zero = HAL_GetTick();
-//		if(now_zero > last_zero)
-//			interval_zero = now_zero - last_zero;
-//		else
-//			interval_zero = now_zero - last_zero + 0x10000;
-//		last_zero = now_zero;
-//
-//		char c[256];
-//		// time base is 50 us
-//		sprintf(c,"%d \r\n", interval_zero);
-//		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
-//	}
-//	last_adc = now_adc;
+//	demod.sampleBufferInput(now_adc);
+
+
+	now_adc = ADC2_Value[0];
+	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
+		now_zero = HAL_GetTick();
+		if(now_zero > last_zero)
+			interval_zero = now_zero - last_zero;
+		else
+			interval_zero = now_zero - last_zero + 0x10000;
+		last_zero = now_zero;
+
+		char c[256];
+		// time base is 50 us
+		sprintf(c,"%d \r\n", interval_zero);
+		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
+	}
+	last_adc = now_adc;
 
 }
 
