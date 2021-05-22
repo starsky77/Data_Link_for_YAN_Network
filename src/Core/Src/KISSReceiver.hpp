@@ -104,9 +104,7 @@ public:
 	void send_to_audio(uint16_t end_pos){
 		  memcpy(c, result_, end_pos_+1);
 		  gen.requestTx((uint8_t*)c, end_pos_);
-		  if (!gen.dac_enabled()) {
-				gen.Tx_on();
-		  }
+		  gen.request(AFSK_Generator::Request_t::SEIZE);
 		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
 	}
 
@@ -124,9 +122,7 @@ public:
 
 	      //JXR for test
 		  gen.requestTx((uint8_t*)out, len);
-	      if (!gen.dac_enabled()) {
-	      				gen.Tx_on();
-	      }
+		  gen.request(AFSK_Generator::Request_t::SEIZE);
 	}
 
 	uint32_t encapsulate(char* in, uint32_t ilen, char* out)
