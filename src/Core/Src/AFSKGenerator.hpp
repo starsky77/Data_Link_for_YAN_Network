@@ -15,10 +15,123 @@
 
 
 class AFSK_Generator {
+public:
+	AFSK_Generator(): hdac(nullptr), Channel(0), dac_tim(nullptr),
+	state(READY), req(0), byte(0), mask(0x80) { }
+	AFSK_Generator(const AFSK_Generator&) = delete;
+	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
+
+	bool init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
+		hdac = hdac_;
+		Channel = Channel_;
+		dac_tim = htim_;
+		auto s1 = HAL_DAC_Start_DMA(hdac, Channel, (uint32_t *)sine12bit.begin(), sine12bit.size(), DAC_ALIGN_12B_R);
+		__HAL_DAC_DISABLE(hdac, Channel);
+		auto s2 = HAL_TIM_Base_Start(dac_tim);
+		return s1 != HAL_OK || s2 != HAL_OK;
+	}
+
+	auto requestTx(const uint8_t* buf, size_t len) {
+		return q.fifo_put(buf, len);
+	}
+
+	using Request_t = enum { SEIZE=1, RELEASE };
+	void request(Request_t req_) {
+		req = req_;
+	}
+
+	bool dac_enabled() {
+		return hdac->Instance->CR & (DAC_CR_EN1 << Channel) != 0;
+	}
+	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
+
+	// invoked in the middle of every slot
+	auto update() {
+		static uint8_t symbol = 0, nb_1bit = 0, TxDelay = 0;
+		// Moore FSM
+		switch (state) {
+			case TXING:
+				// HDLC: bit stuffing
+				if (nb_1bit == 5) {
+					nb_1bit = 0;
+					// HDLC: NRZI
+					symbol = !symbol;
+				}
+				else {
+					if (mask == 0x80) {
+						// get next byte
+						byte = q.front();
+						q.pop();
+					}
+					mask = mask << 1 | mask >> 7; // rol
+					// get next bit
+					uint8_t bit = (byte & mask) != 0;
+					if (bit) {
+						nb_1bit++;
+					}
+					else {
+						nb_1bit = 0;
+						// HDLC: NRZI
+						symbol = !symbol;
+					}
+				}
+				// config to Tx this symbol; assume preload enabled
+				Tx_symbol(symbol);
+				break;
+			case STARTUP:
+				// Tx 0 for TxDelay slots
+				symbol = !symbol;
+				Tx_symbol(symbol);
+				break;
+			case READY:
+				break;
+			default:
+				break;
+		}
+		// decide next state based on internals and requests
+		switch (state) {
+			case READY:
+				if (req == SEIZE) {
+					state = STARTUP;
+					__HAL_DAC_ENABLE(hdac, Channel);
+					TxDelay = 128;
+				}
+				else {
+					req = 0;
+				}
+				break;
+			case STARTUP:
+				if (--TxDelay == 0) {
+					if (q.empty()) {
+						state = READY;
+						__HAL_DAC_DISABLE(hdac, Channel);
+					}
+					else {
+						state = TXING;
+					}
+				}
+				break;
+			case TXING:
+				// Tx cplt
+				if (mask == 0x80 && q.empty()) {
+					state = READY;
+					__HAL_DAC_DISABLE(hdac, Channel);
+				}
+				break;
+			default:
+				break;
+		}
+	}
+
+	~AFSK_Generator() {
+		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();
+	}
+
+private:
 	// HW handle operated on
 	DAC_HandleTypeDef *hdac;
 	uint32_t Channel;
-	TIM_HandleTypeDef *htim;
+	TIM_HandleTypeDef *dac_tim;
 	// sine code table w/ val in range [0, 4096)
 	static constexpr std::array<uint16_t, 256> sine12bit {
         2047, 2098, 2148, 2198, 2248, 2298, 2348, 2398, 2447, 2496,
@@ -53,79 +166,19 @@ class AFSK_Generator {
 	// the same time slot for 2 symbols
 	static constexpr uint16_t S[] {11 * sine12bit.size() / 6, sine12bit.size()};
 	// state var
-	bool transmit;
+	using State_t = enum { READY, STARTUP, TXING };
+	State_t state;
+	Request_t req;
+	// TXING
 	uint8_t byte;
 	uint8_t mask;
 	CircularQueue<uint8_t, 255> q;
 
 	void Tx_symbol(uint8_t symbol) {
 		// config to Tx this symbol; assume preload enabled
-		__HAL_TIM_SET_AUTORELOAD(htim, ARR[symbol]);
+		__HAL_TIM_SET_AUTORELOAD(dac_tim, ARR[symbol]);
 	}
 
-public:
-	AFSK_Generator(): hdac(nullptr), Channel(0), htim(nullptr), transmit(false), byte(0), mask(0x80) { } //
-	AFSK_Generator(const AFSK_Generator&) = delete;
-	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
-
-	bool init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
-		hdac = hdac_;
-		Channel = Channel_;
-		htim = htim_;
-		auto s1 = HAL_DAC_Start_DMA(hdac, Channel, (uint32_t *)sine12bit.begin(), sine12bit.size(), DAC_ALIGN_12B_R);
-		__HAL_DAC_DISABLE(hdac, Channel);
-		auto s2 = HAL_TIM_Base_Start(htim);
-		return s1 != HAL_OK || s2 != HAL_OK;
-	}
-
-	auto requestTx(const uint8_t* buf, size_t len) {
-		return q.fifo_put(buf, len);
-	}
-
-	void Tx_on() {
-		transmit = true;
-	}
-	void Tx_off() {
-		transmit = false;
-	}
-	bool dac_enabled() {
-		return hdac->Instance->CR & (DAC_CR_EN1 << Channel) != 0;
-	}
-	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
-
-	auto update() {
-		static uint8_t symbol = 0;
-		// nothing to Tx
-		if (mask == 0x80 && q.empty()) {
-			Tx_off();
-		}
-		// turn dac on/off
-		if (dac_enabled() != transmit) {
-			if (transmit) {
-				__HAL_DAC_ENABLE(hdac, Channel);
-			}
-			else {
-				__HAL_DAC_DISABLE(hdac, Channel);
-			}
-		}
-		// Tx
-		if (transmit) {
-			if (mask == 0x80) {
-				// get next byte
-				byte = q.front();
-				q.pop();
-			}
-			mask = mask << 1 | mask >> 7; // rol
-			// get next symbol
-			symbol = (byte & mask) != 0;
-			// config to Tx this symbol; assume preload enabled
-			Tx_symbol(symbol);
-		}
-	}
-
-	~AFSK_Generator() {
-		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();
-	}
 };
 
 #endif /* SRC_AFSKGENERATOR_ */
