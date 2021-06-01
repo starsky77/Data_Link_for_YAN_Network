@@ -18,6 +18,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <Demod.h>
 #include "main.h"
 #include "adc.h"
 #include "dac.h"
@@ -30,7 +31,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "AFSKGenerator.hpp"
-#include "Demod.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +49,8 @@
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 
+#define ADC_BUFF_SIZE 50
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,10 +62,14 @@
 
 /* USER CODE BEGIN PV */
 AFSK_Generator gen;
+
+
 //Demodulator demod(50,1000000,0.1);
 //Demodulator demod(50,120000,0.1);
+//1/16码元长度，每段采样300个点，采样频率5.76M
+Demodulator demod(ADC_BUFF_SIZE,960000,0.1);
 
-uint16_t ADC2_Value[1];
+uint32_t ADC2_Value[ADC_BUFF_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -88,16 +94,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	}
 
 	else if (htim == &htim2){
-//	    char c[256];
-//		sprintf(c,"%d \r\n", 123);
-//		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
-
-		HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
-		// start DMA
-		//Problem:执行下面这段代码会导致程序停止运行，无论ADC回调函数中是否有内容
+	  HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, ADC_BUFF_SIZE);
 	}
 
 
+}
+
+void UartTestOutput()
+{
+	char c[32];
+	sprintf(c,"%s \r\n", "Test run111");
+	HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c),0xffff);
 }
 
 /* USER CODE END 0 */
@@ -150,12 +157,16 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim16);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADCEx_Calibration_Start(&hadc);
+  //circuit mode ADC
+  //UartTestOutput();
+  //HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 10);
+
   /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	//Test for uart:
+
     // low freq pulse gen
     uint32_t t = HAL_GetTick();
     if (t >= led_tick + PW) {
@@ -164,9 +175,6 @@ int main(void)
     }
 
 
-    //HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
-
-//    HAL_ADC_Start_DMA(&hadc, (uint32_t*)ADC2_Value, 1);
 
     /* USER CODE END WHILE */
 
@@ -216,28 +224,55 @@ uint32_t last_adc, now_adc;
 uint16_t last_zero, now_zero, interval_zero;
 
 /* USER CODE BEGIN 4 */
+void TestADC() {
+	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
+		char c[32];
+		sprintf(c, "value%d:%d\r\n", i, ADC2_Value[i]);
+		HAL_UART_Transmit(&huart1, (uint8_t*) c, strlen(c), 0xffff);
+		//高频率下用IT以及DMA在显示上会出现问题
+		//HAL_UART_Transmit_IT(&huart1, (uint8_t *)c, strlen(c));
+	}
+
+	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
+		ADC2_Value[i] = 0;
+	}
+
+}
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+
+//	UartTestOutput();
+	demod.FFTDemod(ADC2_Value);
+
+	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
+		ADC2_Value[i] = 0;
+	}
+
+
+
+	//TestADC();
+
 	//未验证以下内容，因为甚至无法进行这一阶段；
 //	now_adc = ADC2_Value[0];
 //	demod.sampleBufferInput(now_adc);
 
-
-	now_adc = ADC2_Value[0];
-	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
-		now_zero = HAL_GetTick();
-		if(now_zero > last_zero)
-			interval_zero = now_zero - last_zero;
-		else
-			interval_zero = now_zero - last_zero + 0x10000;
-		last_zero = now_zero;
-
-		char c[256];
-		// time base is 50 us
-		sprintf(c,"%d \r\n", interval_zero);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
-	}
-	last_adc = now_adc;
+// Old vision:zero crossing
+//	now_adc = ADC2_Value[0];
+//	if(now_adc>=2048 && last_adc<=2048||now_adc<=2048 && last_adc>=2048){
+//		now_zero = HAL_GetTick();
+//		if(now_zero > last_zero)
+//			interval_zero = now_zero - last_zero;
+//		else
+//			interval_zero = now_zero - last_zero + 0x10000;
+//		last_zero = now_zero;
+//
+//		char c[256];
+//		// time base is 50 us
+//		sprintf(c,"%d \r\n", interval_zero);
+//		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)c, strlen(c));
+//	}
+//	last_adc = now_adc;
 
 }
 
