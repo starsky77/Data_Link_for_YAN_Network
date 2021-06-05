@@ -66,10 +66,11 @@ AFSK_Generator gen;
 
 //Demodulator demod(50,1000000,0.1);
 //Demodulator demod(50,120000,0.1);
-//1/16码元长度，每段采样300个点，采样频率5.76M
+
+//使用补0法，采样点实际上是50，补0后是16倍
 Demodulator demod(ADC_BUFF_SIZE,960000,0.1);
 
-uint32_t ADC2_Value[ADC_BUFF_SIZE];
+uint16_t ADC2_Value[ADC_BUFF_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,12 +101,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 }
 
-void UartTestOutput()
-{
-	char c[32];
-	sprintf(c,"%s \r\n", "Test run111");
-	HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c),0xffff);
-}
+//void UartTestOutput()
+//{
+//	char c[32];
+//	sprintf(c,"%s \r\n", "Test run111");
+//	HAL_UART_Transmit(&huart1, (uint8_t *)c, strlen(c),0xffff);
+//}
 
 /* USER CODE END 0 */
 
@@ -144,7 +145,6 @@ int main(void)
   MX_ADC_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
-  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
   // sync ctrl
   constexpr uint16_t PW = 25;
@@ -154,7 +154,6 @@ int main(void)
   gen.resume_gen();
   // 1200 Hz Time Base
   HAL_TIM_Base_Start_IT(&htim14);
-  HAL_TIM_Base_Start_IT(&htim16);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_ADCEx_Calibration_Start(&hadc);
   //circuit mode ADC
