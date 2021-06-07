@@ -111,7 +111,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
-//		gen.update();
+		gen.update();
 //		SysTick_write_Callback();
 	}
 	if (htim == &htim2){
@@ -163,7 +163,6 @@ int main(void)
   // sync ctrl
   constexpr uint16_t PW = 100;
   uint32_t led_tick = HAL_GetTick();
-  UnitTest_DA ut(gen);
   // AFSK gen
   assert(gen.init(&hdac1, DAC_CHANNEL_1, &htim6) == 0);
   // KISS
@@ -188,7 +187,6 @@ int main(void)
       char in[] = {'\x46','\x49','\xC0','\x45'};
 //      kiss.send_to_host(in, sizeof(in));
     }
-    ut.test1();
 
     kiss.handle_buffer();
     /* USER CODE END WHILE */
