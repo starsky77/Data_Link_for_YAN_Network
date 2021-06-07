@@ -33,12 +33,13 @@ public:
 
 
 	bool dac_enabled() {
-		return hdac->Instance->CR & (DAC_CR_EN1 << Channel) != 0;
+		return (hdac->Instance->CR) & (DAC_CR_EN1 << Channel) != 0;
 	}
 	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
 
 	// invoked in the middle of every slot
 	void update();
+	friend struct UnitTest_DA;
 
 	~AFSK_Generator() {
 		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();
