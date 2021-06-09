@@ -58,7 +58,7 @@ CircularQueue<char, 255> chars;
 DebouncedGpio_IT btn_in{BTN_GPIO_Port, BTN_Pin};
 EdgeDetector btn{1};
 // DAC
-AFSK_Generator gen;
+AX25_TNC_Tx ax25Tx;
 KISS_Receiver kiss(&huart1); // for test
 uint16_t ADC2_Value[1];
 uint16_t ticks;
@@ -104,14 +104,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if (GPIO_Pin == BTN_Pin) {
 		if (btn.detect(btn_in.update()) < 0) {
 			// btn pressed
-			gen.request(AFSK_Generator::Request_t::SEIZE);
+
 		}
 	}
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
-		gen.update();
+		ax25Tx.update();
 //		SysTick_write_Callback();
 	}
 	if (htim == &htim2){
@@ -164,7 +164,7 @@ int main(void)
   constexpr uint16_t PW = 100;
   uint32_t led_tick = HAL_GetTick();
   // AFSK gen
-  assert(gen.init(&hdac1, DAC_CHANNEL_1, &htim6) == 0);
+  assert(ax25Tx.init(&hdac1, DAC_CHANNEL_1, &htim6) == 0);
   // KISS
   HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
   // 1200 Hz Time Base

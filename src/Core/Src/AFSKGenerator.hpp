@@ -14,37 +14,41 @@
 #include <array>
 
 
-class AFSK_Generator {
-public:
-	AFSK_Generator(): hdac(nullptr), Channel(0), dac_tim(nullptr),
-		state(READY), req(NA), byte(0), mask(0x80) { }
-	AFSK_Generator(const AFSK_Generator&) = delete;
-	AFSK_Generator& operator=(const AFSK_Generator&) = delete;
+namespace {
+	// ref LeetCode
+    constexpr auto POW2(int n) { return ((uint32_t)1) << n; };
+    constexpr auto MASK = (uint32_t)(-1);
+    // ROUND(n) + ROUND(n) << POW2(n) = MASK
+    constexpr auto ROUND(int n) { return MASK / (POW2(POW2(n))+1); };
+    uint32_t reverseBits(uint32_t n) {
+        for (int i = 0; i < 5; i++) {
+            n = ((n & ROUND(i)) << POW2(i)) + ((n >> POW2(i)) & ROUND(i));
+        }
+        return n;
+    }
 
-	int init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_);
+    // ref ymodem
+    uint16_t UpdateCRC16(uint16_t crc_in, uint8_t byte) {
+      uint32_t crc = crc_in;
+      uint32_t in = byte | 0x100;
 
-	using Request_t = enum { NA, SEIZE, RELEASE };
-	void request(Request_t req_) {
-		req = req_;
-	}
-	auto requestTx(const uint8_t* buf, size_t len) {
-		return q.fifo_put(buf, len);
-	}
+      do {
+        crc <<= 1;
+        in <<= 1;
+        if (in & 0x100)
+          ++crc;
+        if (crc & 0x10000)
+          crc ^= 0x1021;
+      } while (!(in & 0x10000));
 
+      return crc & 0xffffu;
+    }
+};
 
-	bool dac_enabled() {
-		return (hdac->Instance->CR) & (DAC_CR_EN1 << Channel) != 0;
-	}
-	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
-
-	// invoked in the middle of every slot
-	void update();
-	friend struct UnitTest_DA;
-
-	~AFSK_Generator() {
-		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();
-	}
-
+/* Handle the DAC to emit the actual sine wave,
+ * with symbols defined in AFSK1200
+ */
+class AFSK_Modulator {
 private:
 	// HW handle operated on
 	DAC_HandleTypeDef *hdac;
@@ -83,113 +87,240 @@ private:
 	static constexpr uint16_t ARR[] {84, 155};
 	// the same time slot for 2 symbols
 	static constexpr uint16_t S[] {11 * sine12bit.size() / 6, sine12bit.size()};
+public:
 	// state var
-	using State_t = enum { READY, STARTUP, TXING, ENDING };
-	State_t state;
-	Request_t req;
-	// TXING
-	uint8_t byte;
-	uint8_t mask;
-	CircularQueue<uint8_t, 255> q;
+	using State_t = enum { OFF, ON };
 
+	AFSK_Modulator(): hdac(nullptr), Channel(0), dac_tim(nullptr) {}
+	AFSK_Modulator(const AFSK_Modulator&) = delete;
+	AFSK_Modulator& operator=(const AFSK_Modulator&) = delete;
+
+	int init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_);
+	bool dac_enabled() {
+		return (hdac->Instance->CR) & (DAC_CR_EN1 << Channel) != 0;
+	}
+	uint32_t cur_val() { return HAL_DAC_GetValue(hdac, Channel); }
+
+	void switches(State_t state) {
+		if (state == OFF) {
+			__HAL_DAC_DISABLE(hdac, Channel);
+		} else if (state == ON) {
+			__HAL_DAC_ENABLE(hdac, Channel);
+		} else {
+			assert(false);
+		}
+	}
 	void Tx_symbol(uint8_t symbol) {
 		// config to Tx this symbol; assume preload enabled
 		__HAL_TIM_SET_AUTORELOAD(dac_tim, ARR[symbol]);
 	}
 
+	~AFSK_Modulator() {
+		if (HAL_DAC_Stop_DMA(hdac, Channel) != HAL_OK) Error_Handler();
+	}
 };
 
-int AFSK_Generator::init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
+int AFSK_Modulator::init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
 	hdac = hdac_;
 	Channel = Channel_;
 	dac_tim = htim_;
 	auto s1 = HAL_DAC_Start_DMA(hdac, Channel, (uint32_t *)sine12bit.begin(), sine12bit.size(), DAC_ALIGN_12B_R);
-	__HAL_DAC_DISABLE(hdac, Channel);
+	switches(OFF);
 	auto s2 = HAL_TIM_Base_Start(dac_tim);
 	if (s1 == HAL_OK && s2 == HAL_OK) return 0;
 	else return 1;
 }
 
-void AFSK_Generator::update() {
-	static uint8_t symbol = 0, nb_1bit = 0, TxDelay = 0;
-	// Moore FSM output
-	switch (state) {
-		case TXING:
-			// HDLC: bit stuffing
-			if (nb_1bit == 5) {
-				nb_1bit = 0;
-				// HDLC: NRZI
-				symbol = !symbol;
-			}
-			else {
-				if (mask == 0x80) {
-					// get next byte
-					byte = q.front();
-					q.pop();
-				}
-				mask = mask << 1 | mask >> 7; // rol
-				// get next bit
-				uint8_t bit = (byte & mask) != 0;
-				if (bit) {
-					nb_1bit++;
-				}
-				else {
-					nb_1bit = 0;
-					// HDLC: NRZI
-					symbol = !symbol;
-				}
-			}
-			// config to Tx this symbol; assume preload enabled
-			Tx_symbol(symbol);
-			break;
-		case STARTUP:
-		case ENDING:
-			// Tx 0 for TxDelay slots
+/* Handle the transmission of frames, including
+ * preamble sequence and frame delimiter.
+ * Handle states and coordinate;
+ * Maintain frame queue;
+ */
+class AX25_TNC_Tx {
+public:
+	AX25_TNC_Tx(): state(IDLE), req(NA), head(0), byte(0), mask(0x80), symbol(0) {}
+
+	int init(DAC_HandleTypeDef *hdac_, uint32_t Channel_, TIM_HandleTypeDef *htim_) {
+		return mod.init(hdac_, Channel_, htim_);
+	}
+	using Request_t = enum { NA, SEIZE, RELEASE };
+	void request(Request_t req_) {
+		req = req_;
+	}
+	void DATA_Request(const uint8_t* buf, size_t len) {
+		// append FCS on req
+		uint32_t crc = 0;
+		for (int i = 0; i < len; i++) {
+			crc = UpdateCRC16(crc, buf[i]);
+		}
+		crc = reverseBits(crc & 0xffffu) >> 16;
+		fbegins.push(frames.tail);
+		assert(frames.fifo_put(buf, len) == len);
+		frames.push((uint8_t)(crc & 0xff));
+		crc >>= 8;
+		frames.push((uint8_t)(crc & 0xff));
+	}
+	// invoked in the middle of every slot
+	int update();
+	int HDLC_encode(uint8_t bit);
+
+	friend struct UnitTest_DA;
+private:
+	AFSK_Modulator mod;
+	// state var
+	using State_t = enum { IDLE, STARTUP, FBEGIN, FRAME, FEND, };
+	State_t state;
+	Request_t req;
+	// frame queue
+	CircularQueue<uint8_t, 255> frames;
+	CircularQueue<size_t, 15> fbegins;
+	// Tx output
+	uint8_t head; // idx pointing into frames
+	uint8_t byte;
+	uint8_t mask;
+	uint8_t symbol;
+};
+
+/* Handle bit stuffing and NRZI line encoding.
+ * non-zero rv means bit stuffing is triggered
+ * and Tx for this slot should be suspended
+ */
+int AX25_TNC_Tx::HDLC_encode(uint8_t bit) {
+	static uint8_t nb_1bit = 0;
+	if (state == FRAME) {
+		// bit stuffing
+		if (nb_1bit == 5) {
+			nb_1bit = 0;
 			symbol = !symbol;
-			Tx_symbol(symbol);
-			break;
-		case READY:
-			break;
-		default:
-			break;
+			return 1;
+		}
+		// NRZI
+		if (bit) {
+			nb_1bit++;
+		} else {
+			nb_1bit = 0;
+			symbol = !symbol;
+		}
+	} else { // simple NRZI
+		if (bit == 0) symbol = !symbol;
+	}
+	return 0;
+}
+
+// direwolf: 8 FEND --- 3 FEND
+int AX25_TNC_Tx::update() {
+	static uint8_t suspended = 0, bit = 0, // FRAME
+			FEND_cnt = 0, // FBEGIN/FEND
+			TxDelay = 0; // STARTUP
+	// Moore FSM: output to AFSK_Modulator
+	switch (state) {
+	case STARTUP:
+		// Tx 0 for TxDelay slots
+		HDLC_encode(0);
+		mod.Tx_symbol(symbol);
+		break;
+	case FBEGIN:
+	case FEND:
+		mask = mask << 1 | mask >> 7; // rol
+		// get next bit
+		bit = (byte & mask) != 0;
+		HDLC_encode(bit);
+		mod.Tx_symbol(symbol);
+		break;
+	case FRAME:
+		if (!suspended) {
+			if (mask == 0x80) {
+				// get next byte
+				byte = frames[head];
+				head = (head+1) % (frames.max_size()+1);
+			}
+			mask = mask << 1 | mask >> 7; // rol
+			// get next bit
+			bit = (byte & mask) != 0;
+		}
+		// in case of failure, this bit is not Tx'd
+		suspended = HDLC_encode(bit);
+		// config to Tx this symbol; assume preload enabled
+		mod.Tx_symbol(symbol);
+		break;
+	default:
+		break;
 	}
 	// decide next state based on internals and requests
 	switch (state) {
-		case READY:
-			if (req == SEIZE) {
-				state = STARTUP;
-				__HAL_DAC_ENABLE(hdac, Channel);
-				TxDelay = 240; // guidance: 0.2 s
+	case IDLE:
+		if (req == SEIZE) {
+			state = STARTUP;
+			TxDelay = 240; // preamble: 0.2 s
+			mod.Tx_symbol(symbol);
+			mod.switches(AFSK_Modulator::ON);
+		}
+		req = NA;
+		break;
+	case STARTUP:
+		if (--TxDelay == 0) {
+			if (frames.empty()) {
+				state = IDLE;
+				mod.switches(AFSK_Modulator::OFF);
+			} else {
+				state = FBEGIN;
+				FEND_cnt = 3;
+				byte = 0x7E;
+				fbegins.pop();
 			}
-			req = NA;
-			break;
-		case STARTUP:
-			if (--TxDelay == 0) {
-				if (q.empty()) {
-					state = READY;
-					__HAL_DAC_DISABLE(hdac, Channel);
+		}
+		break;
+	case FBEGIN:
+		if (mask == 0x80) {
+			--FEND_cnt;
+		}
+		if (FEND_cnt == 0) {
+			head = frames.head;
+			state = FRAME;
+		}
+		break;
+	case FRAME:
+		if (!suspended) {
+			// current byte Tx cplt
+			if (mask == 0x80) {
+				// current frame Tx cplt
+				if (fbegins.empty()) {
+					if (head == frames.tail) {
+						state = FEND;
+						FEND_cnt = 3;
+						byte = 0x7E;
+						frames.head = head;
+					}
+				} else {
+					if (head == fbegins.front()) {
+						state = FEND;
+						FEND_cnt = 3;
+						byte = 0x7E;
+						frames.head = head;
+					}
 				}
-				else {
-					state = TXING;
-				}
 			}
-			break;
-		case TXING:
-			// Tx cplt
-			if (mask == 0x80 && q.empty()) {
-				state = ENDING;
-				TxDelay = 12; // shutting down: 0.01 s
+		}
+		break;
+	case FEND:
+		if (mask == 0x80) {
+			--FEND_cnt;
+		}
+		if (FEND_cnt == 0) {
+			if (frames.empty()) {
+				state = IDLE;
+			} else {
+				state = FBEGIN;
+				fbegins.pop();
+				FEND_cnt = 3;
+				byte = 0x7E;
 			}
-			break;
-		case ENDING:
-			if (--TxDelay == 0) {
-				state = READY;
-				__HAL_DAC_DISABLE(hdac, Channel);
-			}
-			break;
-		default:
-			break;
+		}
+		break;
+	default:
+		break;
 	}
+	return 0;
 }
 
 #endif /* SRC_AFSKGENERATOR_ */

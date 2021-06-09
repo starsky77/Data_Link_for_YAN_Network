@@ -11,7 +11,7 @@
 #include "AFSKGenerator.hpp"
 
 static char c[1024];
-extern AFSK_Generator gen;
+extern AX25_TNC_Tx ax25Tx;
 
 class KISS_Receiver{
 	UART_HandleTypeDef * huart_ = &huart1;
@@ -103,8 +103,8 @@ public:
 
 	void send_to_audio(uint16_t end_pos){
 		  memcpy(c, result_, end_pos_+1);
-		  gen.requestTx((uint8_t*)c, end_pos_);
-		  gen.request(AFSK_Generator::Request_t::SEIZE);
+		  ax25Tx.DATA_Request((uint8_t*)c, end_pos_);
+		  ax25Tx.request(AX25_TNC_Tx::Request_t::SEIZE);
 		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
 	}
 
@@ -121,8 +121,8 @@ public:
 	      HAL_UART_Transmit_DMA(huart_, (uint8_t *)out, len);
 
 	      //JXR for test
-		  gen.requestTx((uint8_t*)out, len);
-		  gen.request(AFSK_Generator::Request_t::SEIZE);
+	      ax25Tx.DATA_Request((uint8_t*)out, len);
+	      ax25Tx.request(AX25_TNC_Tx::Request_t::SEIZE);
 	}
 
 	uint32_t encapsulate(char* in, uint32_t ilen, char* out)
