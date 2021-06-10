@@ -15,19 +15,8 @@
 
 
 namespace {
-	// ref LeetCode
-    constexpr auto POW2(int n) { return ((uint32_t)1) << n; };
-    constexpr auto MASK = (uint32_t)(-1);
-    // ROUND(n) + ROUND(n) << POW2(n) = MASK
-    constexpr auto ROUND(int n) { return MASK / (POW2(POW2(n))+1); };
-    uint32_t reverseBits(uint32_t n) {
-        for (int i = 0; i < 5; i++) {
-            n = ((n & ROUND(i)) << POW2(i)) + ((n >> POW2(i)) & ROUND(i));
-        }
-        return n;
-    }
-
-    // ref direwolf
+    // ref direwolf; They have bit ordering covered,
+	// you just treat it as normal payload.
     // from http://www.ietf.org/rfc/rfc1549.txt
     const uint16_t ccitt_table[256] = {
        0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
@@ -183,7 +172,6 @@ public:
 	void DATA_Request(const uint8_t* buf, size_t len) {
 		// append FCS on req
 		uint32_t crc = fcs_calc(buf, len);
-		crc = reverseBits(crc & 0xffffu) >> 16;
 		fbegins.push(frames.tail);
 		assert(frames.fifo_put(buf, len) == len);
 		frames.push((uint8_t)(crc & 0xff));
@@ -194,7 +182,7 @@ public:
 	int update();
 	int HDLC_encode(uint8_t bit);
 
-	friend struct UnitTest_DA;
+	friend struct UnitTest_DA; // more flexible manipulation
 private:
 	AFSK_Modulator mod;
 	// state var
@@ -245,13 +233,27 @@ int AX25_TNC_Tx::update() {
 			TxDelay = 0; // STARTUP
 	// Moore FSM: output to AFSK_Modulator
 	switch (state) {
+	case IDLE:
+		mod.switches(AFSK_Modulator::OFF);
+		break;
 	case STARTUP:
 		// Tx 0 for TxDelay slots
-		HDLC_encode(0);
-		mod.Tx_symbol(symbol);
+		if (TxDelay == 0) {
+			// refresh; preamble: 0.2 s
+			TxDelay = 240;
+			mod.Tx_symbol((symbol = 0));
+			mod.switches(AFSK_Modulator::ON);
+		} else {
+			HDLC_encode(0);
+			mod.Tx_symbol(symbol);
+		}
 		break;
 	case FBEGIN:
 	case FEND:
+		if (mask == 0x80) {
+			// get next byte
+			byte = 0x7E;
+		}
 		mask = mask << 1 | mask >> 7; // rol
 		// get next bit
 		bit = (byte & mask) != 0;
@@ -282,9 +284,6 @@ int AX25_TNC_Tx::update() {
 	case IDLE:
 		if (req == SEIZE) {
 			state = STARTUP;
-			TxDelay = 240; // preamble: 0.2 s
-			mod.Tx_symbol(symbol);
-			mod.switches(AFSK_Modulator::ON);
 		}
 		req = NA;
 		break;
@@ -292,11 +291,9 @@ int AX25_TNC_Tx::update() {
 		if (--TxDelay == 0) {
 			if (frames.empty()) {
 				state = IDLE;
-				mod.switches(AFSK_Modulator::OFF);
 			} else {
 				state = FBEGIN;
 				FEND_cnt = 3;
-				byte = 0x7E;
 				fbegins.pop();
 			}
 		}
@@ -319,14 +316,12 @@ int AX25_TNC_Tx::update() {
 					if (head == frames.tail) {
 						state = FEND;
 						FEND_cnt = 3;
-						byte = 0x7E;
 						frames.head = head;
 					}
 				} else {
 					if (head == fbegins.front()) {
 						state = FEND;
 						FEND_cnt = 3;
-						byte = 0x7E;
 						frames.head = head;
 					}
 				}
@@ -340,12 +335,10 @@ int AX25_TNC_Tx::update() {
 		if (FEND_cnt == 0) {
 			if (frames.empty()) {
 				state = IDLE;
-				mod.switches(AFSK_Modulator::OFF);
 			} else {
 				state = FBEGIN;
-				fbegins.pop();
 				FEND_cnt = 3;
-				byte = 0x7E;
+				fbegins.pop();
 			}
 		}
 		break;
