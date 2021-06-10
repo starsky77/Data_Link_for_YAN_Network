@@ -13,20 +13,20 @@
 #include <stdint.h>
 
 struct UnitTest_DA {
-	AFSK_Generator &uut;
-	UnitTest_DA(AFSK_Generator &uut): uut(uut) {}
+	AX25_TNC_Tx &uut;
+	UnitTest_DA(AX25_TNC_Tx &uut): uut(uut) {}
 
 	int test1() {
 		static uint32_t tick = 0, symbol = 0;
 		if (tick == 0) {
-			__HAL_DAC_ENABLE(uut.hdac, uut.Channel);
-			uut.Tx_symbol(symbol);
+			uut.mod.switches(AFSK_Modulator::State_t::ON);
+			uut.mod.Tx_symbol(symbol);
 		}
 		uint32_t t = HAL_GetTick();
 		if (t >= tick + 1000) {
 			tick = t;
 			symbol = !symbol;
-			uut.Tx_symbol(symbol);
+			uut.mod.Tx_symbol(symbol);
 		}
 		return 0;
 	}

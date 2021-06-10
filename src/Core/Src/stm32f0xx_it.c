@@ -57,9 +57,7 @@
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc;
-extern ADC_HandleTypeDef hadc;
 extern DMA_HandleTypeDef hdma_dac1_ch1;
-extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim14;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
@@ -149,20 +147,6 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles EXTI line 2 and 3 interrupts.
-  */
-void EXTI2_3_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI2_3_IRQn 0 */
-
-  /* USER CODE END EXTI2_3_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
-  /* USER CODE BEGIN EXTI2_3_IRQn 1 */
-
-  /* USER CODE END EXTI2_3_IRQn 1 */
-}
-
-/**
   * @brief This function handles DMA1 channel 1 interrupt.
   */
 void DMA1_Channel1_IRQHandler(void)
@@ -203,34 +187,6 @@ void DMA1_Channel4_5_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel4_5_IRQn 1 */
 
   /* USER CODE END DMA1_Channel4_5_IRQn 1 */
-}
-
-/**
-  * @brief This function handles ADC and COMP interrupts (COMP interrupts through EXTI lines 21 and 22).
-  */
-void ADC1_COMP_IRQHandler(void)
-{
-  /* USER CODE BEGIN ADC1_COMP_IRQn 0 */
-
-  /* USER CODE END ADC1_COMP_IRQn 0 */
-  HAL_ADC_IRQHandler(&hadc);
-  /* USER CODE BEGIN ADC1_COMP_IRQn 1 */
-
-  /* USER CODE END ADC1_COMP_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM2 global interrupt.
-  */
-void TIM2_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM2_IRQn 0 */
-
-  /* USER CODE END TIM2_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim2);
-  /* USER CODE BEGIN TIM2_IRQn 1 */
-
-  /* USER CODE END TIM2_IRQn 1 */
 }
 
 /**

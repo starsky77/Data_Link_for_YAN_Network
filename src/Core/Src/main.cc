@@ -186,9 +186,10 @@ int main(void)
 
       char in[] = {'\x46','\x49','\xC0','\x45'};
 //      kiss.send_to_host(in, sizeof(in));
+      kiss.handle_buffer();
     }
 
-    kiss.handle_buffer();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

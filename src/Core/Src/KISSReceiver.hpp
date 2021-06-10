@@ -70,7 +70,7 @@ public:
 			case INIT:
 				if(buffer_[handle_count_] == FEND){
 					state = ING;
-					//! TODO maybe add FEND into string
+					handle_count_ = (handle_count_+1)%length_; // cmd byte
 				}
 				break;
 			case ING:

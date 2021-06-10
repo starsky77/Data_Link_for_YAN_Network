@@ -65,10 +65,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(BTN_GPIO_Port, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
-
 }
 
 /* USER CODE BEGIN 2 */
