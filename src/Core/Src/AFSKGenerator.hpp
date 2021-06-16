@@ -14,6 +14,7 @@
 #include <array>
 
 
+//TODO crc impl can be shared w/ AD side
 namespace {
     // ref direwolf; They have bit ordering covered,
 	// you just treat it as normal payload.
@@ -280,6 +281,7 @@ int AX25_TNC_Tx::update() {
 		break;
 	}
 	// decide next state based on internals and requests
+	// The point is DO NOT touch AFSK_Modulator in this sect.
 	switch (state) {
 	case IDLE:
 		if (req == SEIZE) {

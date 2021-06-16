@@ -10,18 +10,20 @@
 #include "main.h"
 #include "AFSKGenerator.hpp"
 
-static char c[1024];
 extern AX25_TNC_Tx ax25Tx;
 
+// handle kiss frame flow
 class KISS_Receiver{
-	UART_HandleTypeDef * huart_ = &huart1;
-	static const uint32_t length_=1024;
+	UART_HandleTypeDef *huart_;
+	static constexpr uint32_t length_=256;
+	// circular_buffer; content produced by DMA, consumed by ?
 	uint8_t buffer_[length_];
+	// linear buffer storing final result
 	uint8_t result_[length_];
+	//TODO space can be optimized
 
-
-	uint16_t receive_count_ = 0;
-	uint16_t handle_count_ = 0;
+	uint16_t receive_count_ = 0; // DMA progress
+	uint16_t handle_count_ = 0; // ? progress
 
 	uint16_t end_pos_ = 0;
 
@@ -64,59 +66,51 @@ public:
 	}
 
 	void handle_buffer(){
-		if(receive_count_ == handle_count_) return;
-
-		switch (state){
-			case INIT:
-				if(buffer_[handle_count_] == FEND){
-					state = ING;
-					handle_count_ = (handle_count_+1)%length_; // cmd byte
-				}
-				break;
-			case ING:
-				if(buffer_[handle_count_] == FEND){
-					state = INIT;
-					send_to_audio(end_pos_);
-					end_pos_ = 0;
-				}
-				else if(buffer_[handle_count_] == FESC){
-					state = ESC;
-				}
-				else{
-					result_[end_pos_++] = buffer_[handle_count_];
-				}
-				break;
-			case ESC:
-				if(buffer_[handle_count_] == TFESC){
-					state = ING;
-					result_[end_pos_++] = FESC;
-				}
-				else if (buffer_[handle_count_] == TFEND){
-					state = ING;
-					result_[end_pos_++] = FEND;
-				}
-				break;
+		while (receive_count_ != handle_count_) {
+			switch (state){
+				case INIT:
+					if(buffer_[handle_count_] == FEND){
+						state = ING;
+						++handle_count_; // cmd byte
+					}
+					break;
+				case ING:
+					if(buffer_[handle_count_] == FEND){
+						state = INIT;
+						send_to_audio(end_pos_);
+						end_pos_ = 0;
+					}
+					else if(buffer_[handle_count_] == FESC){
+						state = ESC;
+					}
+					else{
+						result_[end_pos_++] = buffer_[handle_count_];
+					}
+					break;
+				case ESC:
+					if(buffer_[handle_count_] == TFESC){
+						state = ING;
+						result_[end_pos_++] = FESC;
+					}
+					else if (buffer_[handle_count_] == TFEND){
+						state = ING;
+						result_[end_pos_++] = FEND;
+					}
+					break;
+				default:
+					break;
+			}
+			handle_count_ = (handle_count_+1)%length_;
 		}
-		handle_count_ = (handle_count_+1)%length_;
-		end_pos_ = end_pos_%length_;
 	}
 
 	void send_to_audio(uint16_t end_pos){
-		  memcpy(c, result_, end_pos_+1);
-		  ax25Tx.DATA_Request((uint8_t*)c, end_pos_);
+		  ax25Tx.DATA_Request(result_, end_pos_);
 		  ax25Tx.request(AX25_TNC_Tx::Request_t::SEIZE);
-		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
 	}
 
-//	void send_to_audio(uint16_t end_pos){
-//		  char c[length_];
-//		  memcpy(c, result_, end_pos_+1);
-//		  HAL_UART_Transmit_DMA(huart_, (uint8_t *)(c), end_pos_);
-//	}
-
-
 	void send_to_host(char* in, uint32_t ilen){
-	      char out[length_];
+	      static char out[length_];
 	      uint32_t len = encapsulate(in, ilen, out);
 	      HAL_UART_Transmit_DMA(huart_, (uint8_t *)out, len);
 

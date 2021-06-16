@@ -64,10 +64,7 @@ uint16_t ADC2_Value[1];
 uint16_t ticks;
 
 
-uint8_t rData[512];  //  for saving RX Data
 uint8_t rDataBuffer[1];  //  RX Data buffer
-uint8_t rDataCount = 0;  //  count Data bytes
-uint8_t rDataFlag = 0;  //  waitting complete RX date having been send
 
 /* USER CODE END PV */
 
@@ -163,7 +160,7 @@ int main(void)
   // sync ctrl
   constexpr uint16_t PW = 100;
   uint32_t led_tick = HAL_GetTick();
-  // AFSK gen
+  // ax25Tx
   assert(ax25Tx.init(&hdac1, DAC_CHANNEL_1, &htim6) == 0);
   // KISS
   HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
