@@ -108,7 +108,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim14) {
-		ax25Tx.update();
+		// ax25Tx.update();
 //		SysTick_write_Callback();
 	}
 	if (htim == &htim2){
@@ -160,6 +160,7 @@ int main(void)
   // sync ctrl
   constexpr uint16_t PW = 100;
   uint32_t led_tick = HAL_GetTick();
+  UnitTest_DA ut(ax25Tx);
   // ax25Tx
   assert(ax25Tx.init(&hdac1, DAC_CHANNEL_1, &htim6) == 0);
   // KISS
@@ -182,10 +183,8 @@ int main(void)
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
       char in[] = {'\x46','\x49','\xC0','\x45'};
-//      kiss.send_to_host(in, sizeof(in));
-      kiss.handle_buffer();
     }
-
+    ut.test1();
 
     /* USER CODE END WHILE */
 
@@ -262,7 +261,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 //  kiss.receive_byte(rDataBuffer[0]);
-  kiss.receive_multi_bytes(rDataBuffer, 1);
+//  kiss.receive_multi_bytes(rDataBuffer, 1);
 //  HAL_UART_Transmit_DMA(&huart1, rDataBuffer, 1);
   HAL_UART_Receive_DMA(&huart1, rDataBuffer, 1);
 }
