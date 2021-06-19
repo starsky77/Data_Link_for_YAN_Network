@@ -1,0 +1,2 @@
+FastFouier.cc:14:5:int reverseBits(short unsigned int, int)	8	static
+FastFouier.cc:153:6:void discreteFourierFast(const std::complex<short unsigned int>*, int, std::complex<short unsigned int>*, fourier_transform_direction)	8296	static
