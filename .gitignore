@@ -3,4 +3,5 @@
 **/*.bin
 **/Debug/
 **/.mxproject
+**/*.lib
 .settings
