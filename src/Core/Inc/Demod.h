@@ -98,7 +98,7 @@ public:
 		float_t fftData[SAMPLE_BUFFER_SIZE * 2];
 		float_t fftOut[SAMPLE_BUFFER_SIZE];
 
-		for (uint8_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+		for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
 			fftData[2 * i] = sampleInput[i];
 			fftData[2 * i + 1] = 0.0;
 		}
