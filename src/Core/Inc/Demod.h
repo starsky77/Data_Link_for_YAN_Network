@@ -20,7 +20,7 @@
 #include <stdlib.h>
 
 //this should be the same as dmaBuffer
-#define SAMPLE_BUFFER_SIZE 64
+#define SAMPLE_BUFFER_SIZE 128
 #define BIT_BUFFER_SZIE 65
 
 
@@ -44,8 +44,8 @@ private:
 	//uint8_t bitBuffer_inpure[BIT_BUFFER_SZIE];
 	uint32_t bitBufferCount;
 	uint32_t sampleFrequency;
-	float_t fftData[512*2];
-	float_t fftOut[512];
+	float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
+	float_t fftOut[SAMPLE_BUFFER_SIZE*2];
 
 
 
@@ -104,7 +104,7 @@ public:
 //		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
 //		float_t fftOut[SAMPLE_BUFFER_SIZE*2];
 		//补0后的真实数量
-		int realDataSize=512;
+		int realDataSize=SAMPLE_BUFFER_SIZE * 2;
 
 		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
 			fftData[2 * i] = sampleInput[i];
@@ -122,21 +122,21 @@ public:
 		float32_t max_value=0;
 		uint32_t max_index=0;
 
-		arm_cfft_f32(&arm_cfft_sR_f32_len512, fftData, 0, 1);
+		arm_cfft_f32(&arm_cfft_sR_f32_len256, fftData, 0, 1);
 		arm_cmplx_mag_f32(fftData, fftOut, realDataSize);
-		fftOut[0]=0;
+//		fftOut[0]=0;
 		arm_max_f32(fftOut, realDataSize, &max_value, &max_index);
 
 
 //		uint32_t timeRecord2=SystemTimer();
 //		uint32_t timePass=timeRecord2-timeRecord1;
 
-		char c[32];
+//		char c[32];
 //		sprintf(c, "Time cost:%dus\r\n", timePass);
 //		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
-		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
-		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
+//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
 		//注意fftOut的每个频率分量需要除以N/2才能得到真正结果，N为采样点个数
 		uint16_t Component_0 = fftOut[0] / realDataSize;
