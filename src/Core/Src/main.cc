@@ -53,7 +53,7 @@
 
 Demodulator demod(FFT_SAMPLE_SIZE,153600,0.1);
 
-uint32_t ADC2_Value[ADC_BUFF_SIZE];
+int ADC2_Value[ADC_BUFF_SIZE];
 //uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
 /* USER CODE END PV */
 
@@ -266,7 +266,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	//减少采样点的数量：128个有效采样点（实际采样值为512个）
 	for(int i=0;i<128;i++)
 	{
-		ADC2_Value[i]=ADC2_Value[i*4];
+		ADC2_Value[i]=ADC2_Value[i*4]-699;
 	}
 	demod.DSPFFTDemod(ADC2_Value);
 //	timeRecord2=SystemTimer();

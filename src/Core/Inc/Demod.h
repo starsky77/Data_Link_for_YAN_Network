@@ -98,7 +98,7 @@ public:
 
 
 	//调用DSP库的FFT
-	void DSPFFTDemod(uint32_t *sampleInput)
+	void DSPFFTDemod(int *sampleInput)
 	{
 		//补1倍的0
 //		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
@@ -124,19 +124,19 @@ public:
 
 		arm_cfft_f32(&arm_cfft_sR_f32_len256, fftData, 0, 1);
 		arm_cmplx_mag_f32(fftData, fftOut, realDataSize);
-		fftOut[0]=0;
+//		fftOut[0]=0;
 		arm_max_f32(fftOut, realDataSize, &max_value, &max_index);
 
 
 //		uint32_t timeRecord2=SystemTimer();
 //		uint32_t timePass=timeRecord2-timeRecord1;
 
-		char c[32];
+//		char c[32];
 //		sprintf(c, "Time cost:%dus\r\n", timePass);
 //		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
-		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
-		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
+//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
 		//注意fftOut的每个频率分量需要除以N/2才能得到真正结果，N为采样点个数
 		uint16_t Component_0 = fftOut[0] / realDataSize;
