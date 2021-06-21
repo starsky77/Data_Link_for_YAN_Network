@@ -98,7 +98,7 @@ public:
 
 
 	//调用DSP库的FFT
-	void DSPFFTDemod(int *sampleInput)
+	void DSPFFTDemod(uint32_t *sampleInput)
 	{
 		//补1倍的0
 //		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
