@@ -20,7 +20,7 @@
 #include <stdlib.h>
 
 //this should be the same as dmaBuffer
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 128
 #define BIT_BUFFER_SZIE 65
 
 
@@ -28,9 +28,11 @@ extern TIM_HandleTypeDef htim4;
 extern int timeCount;
 uint32_t SystemTimer(void)//获取系统时间的函数
 {
-	return (htim4.Instance->CNT + timeCount * 65535)/1000;
+	return (htim4.Instance->CNT + timeCount * 65535);
 	//系统时间=定时器当前计数值+65535*定时器中断次数
 }
+
+
 
 class Demodulator {
 private:
@@ -42,6 +44,8 @@ private:
 	//uint8_t bitBuffer_inpure[BIT_BUFFER_SZIE];
 	uint32_t bitBufferCount;
 	uint32_t sampleFrequency;
+	float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
+	float_t fftOut[SAMPLE_BUFFER_SIZE*2];
 
 
 
@@ -52,6 +56,7 @@ public:
 	uint16_t resultBuffer[600];
 	uint16_t debugBufferCount;
 	int bufferFullFlag;
+
 
 	Demodulator(uint32_t samplePointsNumber, uint32_t Frequency,
 			float threshold) :
@@ -93,26 +98,53 @@ public:
 
 
 	//调用DSP库的FFT
-	int DSPFFTDemod(uint16_t *sampleInput)
+	void DSPFFTDemod(uint32_t *sampleInput)
 	{
-		float_t fftData[SAMPLE_BUFFER_SIZE * 2];
-		float_t fftOut[SAMPLE_BUFFER_SIZE];
+		//补1倍的0
+//		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
+//		float_t fftOut[SAMPLE_BUFFER_SIZE*2];
+		//补0后的真实数量
+		int realDataSize=SAMPLE_BUFFER_SIZE * 2;
 
-		for (uint32_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
 			fftData[2 * i] = sampleInput[i];
 			fftData[2 * i + 1] = 0.0;
 		}
+		for(int i=SAMPLE_BUFFER_SIZE;i<realDataSize;i++)
+		{
+			fftData[2 * i] = 0.0;
+			fftData[2 * i + 1] = 0.0;
+		}
 
-		arm_cfft_f32(&arm_cfft_sR_f32_len512, fftData, 0, 1);
-		arm_cmplx_mag_f32(fftData, fftOut, SAMPLE_BUFFER_SIZE);
+		uint32_t timeRecord1=SystemTimer();
+
+
+		float32_t max_value=0;
+		uint32_t max_index=0;
+
+		arm_cfft_f32(&arm_cfft_sR_f32_len256, fftData, 0, 1);
+		arm_cmplx_mag_f32(fftData, fftOut, realDataSize);
+		fftOut[0]=0;
+		arm_max_f32(fftOut, realDataSize, &max_value, &max_index);
+
+
+//		uint32_t timeRecord2=SystemTimer();
+//		uint32_t timePass=timeRecord2-timeRecord1;
+
+		char c[32];
+//		sprintf(c, "Time cost:%dus\r\n", timePass);
+//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+
+		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
+		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
 		//注意fftOut的每个频率分量需要除以N/2才能得到真正结果，N为采样点个数
-		uint16_t Component_0 = fftOut[0] / SAMPLE_BUFFER_SIZE;
-		uint16_t Component_1 = fftOut[1] * 2 / SAMPLE_BUFFER_SIZE;
-		uint16_t Component_2 = fftOut[2] * 2 / SAMPLE_BUFFER_SIZE;
-		uint16_t Component_3 = fftOut[3] * 2 / SAMPLE_BUFFER_SIZE;
-		uint16_t Component_4 = fftOut[4] * 2 / SAMPLE_BUFFER_SIZE;
-		uint16_t Component_5 = fftOut[5] * 2 / SAMPLE_BUFFER_SIZE;
+		uint16_t Component_0 = fftOut[0] / realDataSize;
+		uint16_t Component_1 = fftOut[1] * 2 / realDataSize;
+		uint16_t Component_2 = fftOut[2] * 2 / realDataSize;
+		uint16_t Component_3 = fftOut[3] * 2 / realDataSize;
+		uint16_t Component_4 = fftOut[4] * 2 / realDataSize;
+		uint16_t Component_5 = fftOut[5] * 2 / realDataSize;
 
 
 		if(debugBufferCount<20)

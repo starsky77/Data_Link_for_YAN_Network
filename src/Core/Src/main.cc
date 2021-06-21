@@ -48,13 +48,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define ADC_BUFF_SIZE 130
+#define ADC_BUFF_SIZE 512
 #define FFT_SAMPLE_SIZE 520
 
-Demodulator demod(FFT_SAMPLE_SIZE,625000,0.1);
+Demodulator demod(FFT_SAMPLE_SIZE,153600,0.1);
 
-uint16_t ADC2_Value[ADC_BUFF_SIZE];
-uint16_t ADC_Buffer[FFT_SAMPLE_SIZE];
+uint32_t ADC2_Value[ADC_BUFF_SIZE];
+//uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -88,7 +88,8 @@ int FFT_count=0;
 int FFT_waitting_count=0;
 
 
-
+int timeRecord1=0;
+int timeRecord2=0;
 
 //demod 10次fft一输出
 //adc 积攒10次一次传输(10次采样-1次fft)
@@ -99,10 +100,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim2) {
 		if(demod.bufferFullFlag==0)
 		{
-			HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC2_Value, ADC_BUFF_SIZE);
+			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC2_Value, ADC_BUFF_SIZE);
 		}
 	}
 }
+
 
 
 /* USER CODE END 0 */
@@ -145,6 +147,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim4);
   HAL_TIM_Base_Start(&htim4);
+//  HAL_ADCEx_Calibration_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -258,19 +261,22 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 //	TestADC();
 
-	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-		ADC_Buffer[i + ADC_store_count % 4] = ADC2_Value[i];
 
+//	timeRecord1=SystemTimer();
+	//减少采样点的数量：128个有效采样点（实际采样值为512个）
+	for(int i=0;i<128;i++)
+	{
+		ADC2_Value[i]=ADC2_Value[i*4];
 	}
-	ADC_store_count++;
+	demod.DSPFFTDemod(ADC2_Value);
+//	timeRecord2=SystemTimer();
+//	int timepass=timeRecord2-timeRecord1;
+//
+//	char c[32];
+//	sprintf(c, "time cost %d us\r\n", timepass);
+//	HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
-	if (ADC_store_count % 4 == 0 && ADC_store_count != 0) {
-		demod.DSPFFTDemod(ADC_Buffer);
-		for (int i = 0; i < FFT_SAMPLE_SIZE; i++) {
-			ADC_Buffer[i] = 0;
 
-		}
-	}
 
 }
 
