@@ -20,7 +20,7 @@
 #include <stdlib.h>
 
 //this should be the same as dmaBuffer
-#define SAMPLE_BUFFER_SIZE 64
+#define SAMPLE_BUFFER_SIZE 32
 #define BIT_BUFFER_SZIE 65
 #define PI2 6.28318530717959
 
@@ -46,9 +46,9 @@ private:
 	uint32_t bitBufferCount;
 	uint32_t sampleFrequency;
 
-	float_t fftData[1024];
-	float_t fftOut[1024];
-	float_t fftResult[1024];
+	float_t fftData[512];
+	float_t fftOut[512];
+	float_t fftResult[512];
 
 
 
@@ -112,7 +112,7 @@ public:
 //		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
 //		float_t fftOut[SAMPLE_BUFFER_SIZE*2];
 		//补0后的真实数量
-		int realDataSize=512;
+		int realDataSize=256;
 
 		//cff
 //		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {

@@ -48,12 +48,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define ADC_BUFF_SIZE 512
-#define FFT_SAMPLE_SIZE 512
+#define ADC_BUFF_SIZE 64
+#define FFT_SAMPLE_SIZE 256
 
-Demodulator demod(FFT_SAMPLE_SIZE,76800,0.1);
+Demodulator demod(FFT_SAMPLE_SIZE,40800,0.1);
 
-int ADC2_Value[ADC_BUFF_SIZE];
+int ADC2_Value[1];
+int ADC_buffer[ADC_BUFF_SIZE];
+int ADC_bufferCount=0;
 //uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
 /* USER CODE END PV */
 
@@ -98,10 +100,10 @@ int timeRecord2=0;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim2) {
-		if(demod.bufferFullFlag==0)
-		{
-			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC2_Value, ADC_BUFF_SIZE);
-		}
+//		if(demod.bufferFullFlag==0)
+//		{
+//			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC2_Value, 1);
+//		}
 	}
 }
 
@@ -153,6 +155,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   int endFlag=0;
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC2_Value, 1);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -251,7 +254,6 @@ void TestADC() {
 
 }
 
-
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 
@@ -266,12 +268,26 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 
 //	timeRecord1=SystemTimer();
-	//减少采样点的数量：64个有效采样点（实际采样值为512个）
-	for(int i=0;i<128;i++)
+	//减少采样点的数量：32个有效采样点
+//	for(int i=0;i<64;i++)
+//	{
+//		ADC2_Value[i]=(ADC2_Value[i*8]-699)*5;
+//	}
+
+	ADC_buffer[ADC_bufferCount]=(ADC2_Value[0]-699)*5;
+	ADC_bufferCount++;
+
+	if(ADC_bufferCount>=32)
 	{
-		ADC2_Value[i]=ADC2_Value[i*8]-699;
+		demod.DSPFFTDemod(ADC_buffer);
+		ADC_bufferCount=0;
 	}
-	demod.DSPFFTDemod(ADC2_Value);
+
+//	for(int i=0;i<64;i++)
+//	{
+//		ADC2_Value[i]=0;
+//	}
+
 //	timeRecord2=SystemTimer();
 //	int timepass=timeRecord2-timeRecord1;
 //
