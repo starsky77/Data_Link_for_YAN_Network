@@ -93,10 +93,7 @@ int FFT_waitting_count=0;
 int timeRecord1=0;
 int timeRecord2=0;
 
-//demod 10次fft一输出
-//adc 积攒10次一次传输(10次采样-1次fft)
-//adc每次fft时会停止采样500轮次
-//定时器中断频率19200hz
+
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim2) {
