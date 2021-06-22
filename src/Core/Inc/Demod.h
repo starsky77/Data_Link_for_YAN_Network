@@ -129,7 +129,8 @@ public:
 
 		//rff
 		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
-			fftData[i] = 2000*arm_sin_f32(PI2*i*1200.0/sampleFrequency);
+			fftData[i] = sampleInput[i];
+//			fftData[i] = 2000*arm_sin_f32(PI2*i*1200.0/sampleFrequency);
 		}
 		for(int i=SAMPLE_BUFFER_SIZE;i<realDataSize;i++)
 		{
