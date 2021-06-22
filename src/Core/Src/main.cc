@@ -29,7 +29,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
-#include "AFSKGenerator.hpp"
+
+#include "AX25_TNC_Tx.hpp"
 #include "KISSReceiver.hpp"
 #include "DebouncedGpio.hpp"
 #include "UnitTest_DA.hpp"

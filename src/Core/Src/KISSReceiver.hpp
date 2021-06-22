@@ -8,7 +8,8 @@
 #define SRC_KISSRECEIVER_HPP_
 
 #include "main.h"
-#include "AFSKGenerator.hpp"
+
+#include "AX25_TNC_Tx.hpp"
 
 extern AX25_TNC_Tx ax25Tx;
 

@@ -8,8 +8,8 @@
 #ifndef SRC_UNITTEST_DA_HPP_
 #define SRC_UNITTEST_DA_HPP_
 
+#include "AX25_TNC_Tx.hpp"
 #include "main.h"
-#include "AFSKGenerator.hpp"
 #include <stdint.h>
 
 struct UnitTest_DA {
