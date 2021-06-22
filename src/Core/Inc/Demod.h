@@ -22,6 +22,7 @@
 //this should be the same as dmaBuffer
 #define SAMPLE_BUFFER_SIZE 64
 #define BIT_BUFFER_SZIE 65
+#define PI2 6.28318530717959
 
 
 extern TIM_HandleTypeDef htim4;
@@ -44,8 +45,10 @@ private:
 	//uint8_t bitBuffer_inpure[BIT_BUFFER_SZIE];
 	uint32_t bitBufferCount;
 	uint32_t sampleFrequency;
-	float_t fftData[512 * 2];
-	float_t fftOut[512];
+
+	float_t fftData[1024];
+	float_t fftOut[1024];
+	float_t fftResult[1024];
 
 
 
@@ -56,6 +59,7 @@ public:
 	uint16_t resultBuffer[600];
 	uint16_t debugBufferCount;
 	int bufferFullFlag;
+	arm_rfft_fast_instance_f32 S;
 
 
 	Demodulator(uint32_t samplePointsNumber, uint32_t Frequency,
@@ -71,8 +75,12 @@ public:
 //		}
 		for (int i = 0; i < BIT_BUFFER_SZIE; i++) {
 			bitBuffer[i] = 0;
-			//bitBuffer_inpure[i] = 0;
 		}
+
+
+		arm_rfft_fast_init_f32(&S,samplePointsNumber);
+
+
 
 
 		//DEBUG
@@ -106,59 +114,72 @@ public:
 		//补0后的真实数量
 		int realDataSize=512;
 
+		//cff
+//		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+////			fftData[2 * i] = sampleInput[i];
+//			//test 2200Hz
+//			fftData[2 * i] = 2000*arm_sin_f32(PI2*i*2200.0/sampleFrequency);
+//			fftData[2 * i + 1] = 0.0;
+//		}
+//		for(int i=SAMPLE_BUFFER_SIZE;i<realDataSize;i++)
+//		{
+//			fftData[2 * i] = 0.0;
+//			fftData[2 * i + 1] = 0.0;
+//		}
+
+		//rff
 		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
-			fftData[2 * i] = sampleInput[i];
-			fftData[2 * i + 1] = 0.0;
+			fftData[i] = 2000*arm_sin_f32(PI2*i*1200.0/sampleFrequency);
 		}
 		for(int i=SAMPLE_BUFFER_SIZE;i<realDataSize;i++)
 		{
-			fftData[2 * i] = 0.0;
-			fftData[2 * i + 1] = 0.0;
+			fftData[i] = 0.0;
 		}
 
-		uint32_t timeRecord1=SystemTimer();
+//		uint32_t timeRecord1=SystemTimer();
 
 
 		float32_t max_value=0;
 		uint32_t max_index=0;
 
-		arm_cfft_f32(&arm_cfft_sR_f32_len512, fftData, 0, 1);
-		arm_cmplx_mag_f32(fftData, fftOut, realDataSize);
-		fftOut[0]=0;
-		arm_max_f32(fftOut, realDataSize, &max_value, &max_index);
+		arm_rfft_fast_f32(&S,fftData,fftOut,0);
 
+//		arm_cfft_f32(&arm_cfft_sR_f32_len512, fftData, 0, 1);
+		arm_cmplx_mag_f32(fftOut, fftResult, realDataSize);
+		arm_max_f32(&fftResult[1], realDataSize-1, &max_value, &max_index);
+		max_index++;
 
 //		uint32_t timeRecord2=SystemTimer();
 //		uint32_t timePass=timeRecord2-timeRecord1;
 
-		char c[32];
+//		char c[32];
 //		sprintf(c, "Time cost:%dus\r\n", timePass);
 //		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
-		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
-		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
+//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 
 		//注意fftOut的每个频率分量需要除以N/2才能得到真正结果，N为采样点个数
-		uint16_t Component_0 = fftOut[0] / realDataSize;
-		uint16_t Component_1 = fftOut[1] * 2 / realDataSize;
-		uint16_t Component_2 = fftOut[2] * 2 / realDataSize;
-		uint16_t Component_3 = fftOut[3] * 2 / realDataSize;
-		uint16_t Component_4 = fftOut[4] * 2 / realDataSize;
-		uint16_t Component_5 = fftOut[5] * 2 / realDataSize;
+//		uint16_t Component_0 = fftData[0] / realDataSize;
+//		uint16_t Component_1 = fftData[1] * 2 / realDataSize;
+//		uint16_t Component_2 = fftData[2] * 2 / realDataSize;
+//		uint16_t Component_3 = fftData[3] * 2 / realDataSize;
+//		uint16_t Component_4 = fftData[4] * 2 / realDataSize;
+//		uint16_t Component_5 = fftData[5] * 2 / realDataSize;
 
 
 		if(debugBufferCount<20)
 		{
-			resultBuffer[debugBufferCount*6+0]=Component_0;
-			resultBuffer[debugBufferCount*6+1]=Component_1;
-			resultBuffer[debugBufferCount*6+2]=Component_2;
-			resultBuffer[debugBufferCount*6+3]=Component_3;
-			resultBuffer[debugBufferCount*6+4]=Component_4;
-			resultBuffer[debugBufferCount*6+5]=Component_5;
+
+			resultBuffer[debugBufferCount*2]=max_value;
+			resultBuffer[debugBufferCount*2+1]=max_index;
+//			resultBuffer[debugBufferCount*6+0]=Component_0;
+//			resultBuffer[debugBufferCount*6+1]=Component_1;
+//			resultBuffer[debugBufferCount*6+2]=Component_2;
+//			resultBuffer[debugBufferCount*6+3]=Component_3;
+//			resultBuffer[debugBufferCount*6+4]=Component_4;
+//			resultBuffer[debugBufferCount*6+5]=Component_5;
 			debugBufferCount++;
-//			char c[32];
-//			sprintf(c, "Test：%d\r\n",debugBufferCount);
-//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 		}
 		else
 		{

@@ -49,9 +49,9 @@
 
 /* USER CODE BEGIN PV */
 #define ADC_BUFF_SIZE 512
-#define FFT_SAMPLE_SIZE 520
+#define FFT_SAMPLE_SIZE 512
 
-Demodulator demod(FFT_SAMPLE_SIZE,153600,0.1);
+Demodulator demod(FFT_SAMPLE_SIZE,76800,0.1);
 
 int ADC2_Value[ADC_BUFF_SIZE];
 //uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
@@ -166,15 +166,18 @@ int main(void)
 		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 		for(int i=0;i<20;i++)
 		{
-			sprintf(c, "Result%d:index0:%d--index1:%d\r\n",i, demod.resultBuffer[i*6],
-					demod.resultBuffer[i*6+1]);
+			sprintf(c, "Result%d:Maxvalue:%d,MaxIndex:%d\r\n", i,(int)demod.resultBuffer[i*2],demod.resultBuffer[i*2+1]);
 			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-			sprintf(c, "Result%d:index2:%d--index3:%d\r\n",i, demod.resultBuffer[i*6+2],
-					demod.resultBuffer[i*6+3]);
-			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-			sprintf(c, "Result%d:index4:%d--index5:%d\r\n\r\n",i, demod.resultBuffer[i*6+4],
-					demod.resultBuffer[i*6+5]);
-			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+
+//			sprintf(c, "Result%d:index0:%d--index1:%d\r\n",i, demod.resultBuffer[i*6],
+//					demod.resultBuffer[i*6+1]);
+//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//			sprintf(c, "Result%d:index2:%d--index3:%d\r\n",i, demod.resultBuffer[i*6+2],
+//					demod.resultBuffer[i*6+3]);
+//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//			sprintf(c, "Result%d:index4:%d--index5:%d\r\n\r\n",i, demod.resultBuffer[i*6+4],
+//					demod.resultBuffer[i*6+5]);
+//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
 		}
 		endFlag=1;
 	 }
