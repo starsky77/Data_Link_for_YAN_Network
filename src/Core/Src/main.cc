@@ -48,10 +48,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define ADC_BUFF_SIZE 64
+#define ADC_BUFF_SIZE 32
 #define FFT_SAMPLE_SIZE 256
 
-Demodulator demod(FFT_SAMPLE_SIZE,40800,0.1);
+Demodulator demod(ADC_BUFF_SIZE,FFT_SAMPLE_SIZE,40800);
 
 int ADC2_Value[1];
 int ADC_buffer[ADC_BUFF_SIZE];

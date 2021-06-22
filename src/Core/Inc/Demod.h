@@ -33,86 +33,55 @@ uint32_t SystemTimer(void)//获取系统时间的函数
 	//系统时间=定时器当前计数值+65535*定时器中断次数
 }
 
-
+#define ADC_DEBUG
 
 class Demodulator {
 private:
-	const float FcomponentThreshold;
 	uint32_t maxSamplePoint;
-//	uint32_t sampleBuffer[SAMPLE_BUFFER_SIZE];
+	uint32_t validSamplePoint;
 	uint32_t sampleBufferCount;
 	uint8_t bitBuffer[BIT_BUFFER_SZIE];
-	//uint8_t bitBuffer_inpure[BIT_BUFFER_SZIE];
 	uint32_t bitBufferCount;
 	uint32_t sampleFrequency;
 
 	float_t fftData[512];
 	float_t fftOut[512];
 	float_t fftResult[512];
-
-
-
-//	uint32_t ZCBufCount;
-//	uint8_t zeroCrossingBuf[ZC_BUFFER_SIZE];
-public:
-	//DEBUG
-	uint16_t resultBuffer[600];
-	uint16_t debugBufferCount;
-	int bufferFullFlag;
 	arm_rfft_fast_instance_f32 S;
 
 
-	Demodulator(uint32_t samplePointsNumber, uint32_t Frequency,
-			float threshold) :
-			maxSamplePoint(samplePointsNumber), sampleFrequency(Frequency), FcomponentThreshold(
-					threshold) {
+public:
+	//DEBUG
+#ifdef ADC_DEBUG
+	uint16_t resultBuffer[600];
+	uint16_t debugBufferCount;
+	int bufferFullFlag;
+#endif
+
+	Demodulator(uint32_t validSamplePointNum, uint32_t samplePointsNumber,
+			uint32_t Frequency) :
+			validSamplePoint(validSamplePointNum), maxSamplePoint(
+					samplePointsNumber), sampleFrequency(Frequency) {
 		sampleBufferCount = 0;
 		bitBufferCount = 0;
-
-		bufferFullFlag=0;
-//		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
-//			sampleBuffer[i] = 0;
-//		}
+#ifdef ADC_DEBUG
+		bufferFullFlag = 0;
+		debugBufferCount = 0;
+#endif
 		for (int i = 0; i < BIT_BUFFER_SZIE; i++) {
 			bitBuffer[i] = 0;
 		}
 
-
-		arm_rfft_fast_init_f32(&S,samplePointsNumber);
-
-
-
+		arm_rfft_fast_init_f32(&S, samplePointsNumber);
 
 		//DEBUG
-		debugBufferCount=0;
 	}
-	~Demodulator(){ };
+	~Demodulator() {
+	}
+	;
 
 
-
-	//采样点传入sampleBuffer中
-	//由于现在是一次性传入，不需要该函数了
-//	void sampleBufferInput(uint32_t samplePoint) {
-//		sampleBuffer[sampleBufferCount] = samplePoint;
-//		sampleBufferCount++;
-//		if (bitBufferCount == maxSamplePoint) {
-//			FFTDemod();
-//			for (int i = 0; i < bitBufferCount; i++) {
-//				sampleBuffer[i] = 0;
-//			}
-//			sampleBufferCount = 0;
-//		}
-//	}
-
-
-	//调用DSP库的FFT
-	void DSPFFTDemod(int *sampleInput)
-	{
-		//补1倍的0
-//		float_t fftData[SAMPLE_BUFFER_SIZE * 2 * 2];
-//		float_t fftOut[SAMPLE_BUFFER_SIZE*2];
-		//补0后的真实数量
-		int realDataSize=256;
+	void DSPFFTDemod(int *sampleInput) {
 
 		//cff
 //		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
@@ -127,67 +96,51 @@ public:
 //			fftData[2 * i + 1] = 0.0;
 //		}
 
-		//rff
-		for (int i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+//rff
+		uint32_t i;
+		for (i = 0; i < validSamplePoint; i++) {
 			fftData[i] = sampleInput[i];
+			//test input
 //			fftData[i] = 2000*arm_sin_f32(PI2*i*1200.0/sampleFrequency);
 		}
-		for(int i=SAMPLE_BUFFER_SIZE;i<realDataSize;i++)
-		{
+		for (; i < maxSamplePoint; i++) {
 			fftData[i] = 0.0;
 		}
 
-//		uint32_t timeRecord1=SystemTimer();
+#ifdef TIMECOUNT
+		uint32_t timeRecord1=SystemTimer();
+#endif
 
+		float32_t max_value = 0;
+		uint32_t max_index = 0;
 
-		float32_t max_value=0;
-		uint32_t max_index=0;
-
-		arm_rfft_fast_f32(&S,fftData,fftOut,0);
-
+		arm_rfft_fast_f32(&S, fftData, fftOut, 0);
 //		arm_cfft_f32(&arm_cfft_sR_f32_len512, fftData, 0, 1);
-		arm_cmplx_mag_f32(fftOut, fftResult, realDataSize);
-		arm_max_f32(&fftResult[1], realDataSize-1, &max_value, &max_index);
+		arm_cmplx_mag_f32(fftOut, fftResult, maxSamplePoint);
+		arm_max_f32(&fftResult[1], maxSamplePoint - 1, &max_value, &max_index);
 		max_index++;
 
-//		uint32_t timeRecord2=SystemTimer();
-//		uint32_t timePass=timeRecord2-timeRecord1;
+#ifdef TIMECOUNT
+		uint32_t timeRecord2=SystemTimer();
+		uint32_t timePass=timeRecord2-timeRecord1;
 
-//		char c[32];
-//		sprintf(c, "Time cost:%dus\r\n", timePass);
-//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+		char c[32];
+		sprintf(c, "Time cost:%dus\r\n", timePass);
+		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+#endif
 
-//		sprintf(c, "Maxvalue:%d,MaxIndex:%d\r\n", (int)max_value,max_index);
-//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+#ifdef ADC_DEBUG
+		//debug
+		if (debugBufferCount < 20) {
 
-		//注意fftOut的每个频率分量需要除以N/2才能得到真正结果，N为采样点个数
-//		uint16_t Component_0 = fftData[0] / realDataSize;
-//		uint16_t Component_1 = fftData[1] * 2 / realDataSize;
-//		uint16_t Component_2 = fftData[2] * 2 / realDataSize;
-//		uint16_t Component_3 = fftData[3] * 2 / realDataSize;
-//		uint16_t Component_4 = fftData[4] * 2 / realDataSize;
-//		uint16_t Component_5 = fftData[5] * 2 / realDataSize;
-
-
-		if(debugBufferCount<20)
-		{
-
-			resultBuffer[debugBufferCount*2]=max_value;
-			resultBuffer[debugBufferCount*2+1]=max_index;
-//			resultBuffer[debugBufferCount*6+0]=Component_0;
-//			resultBuffer[debugBufferCount*6+1]=Component_1;
-//			resultBuffer[debugBufferCount*6+2]=Component_2;
-//			resultBuffer[debugBufferCount*6+3]=Component_3;
-//			resultBuffer[debugBufferCount*6+4]=Component_4;
-//			resultBuffer[debugBufferCount*6+5]=Component_5;
+			resultBuffer[debugBufferCount * 2] = max_value;
+			resultBuffer[debugBufferCount * 2 + 1] = max_index;
 			debugBufferCount++;
-		}
-		else
-		{
-			bufferFullFlag=1;
+		} else {
+			bufferFullFlag = 1;
 		}
 	}
-
+#endif
 
 
 #ifdef MYFFT
