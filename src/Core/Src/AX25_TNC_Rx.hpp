@@ -20,13 +20,13 @@
  */
 class AX25_TNC_Rx {
 public:
-	AX25_TNC_Rx(): state(PREAMBLE), tail(0), byte(0), mask(0x80), bit(0) {}
+	AX25_TNC_Rx(): state(FEND), tail(0), byte(0), mask(0x80), bit(0) {}
 	int Rx_symbol(uint8_t symbol);
 	std::function<int(const uint8_t*, size_t)> DATA_Indication;
 
 private:
 	// state var
-	using State_t = enum { PREAMBLE, FEND, FRAME, };
+	using State_t = enum { FEND, FRAME, };
 	State_t state;
 	// frame
 	uint8_t frame[256];
@@ -82,7 +82,6 @@ int AX25_TNC_Rx::Rx_symbol(uint8_t symbol) {
 
 	// Moore FSM: input from AFSK_Demodulator
 	switch (state) {
-	case PREAMBLE:
 	case FEND:
 		HDLC_decode(symbol);
 		byte = byte >> 1;
@@ -110,16 +109,6 @@ int AX25_TNC_Rx::Rx_symbol(uint8_t symbol) {
 	}
 	// decide next state based on internals
 	switch (state) {
-	case PREAMBLE:
-		// looking for AX25 FEND
-		if (byte == 0x7E) {
-			state = FRAME;
-			// init FRAME
-			tail = byte = bit = 0;
-			mask = 0x80;
-			suspended = 0;
-		}
-		break;
 	case FRAME:
 		if (suspended == 2) {
 			state = FEND;
@@ -139,11 +128,12 @@ int AX25_TNC_Rx::Rx_symbol(uint8_t symbol) {
 					DATA_Indication(frame, tail);
 				}
 			}
-			// next state
-			//! need at least 2 FEND to seperate
-			state = PREAMBLE;
-			// init PREAMBLE
-			byte = 0;
+			// start receiving next frame (or FEND)
+			state = FRAME;
+			// init FRAME
+			tail = byte = bit = 0;
+			mask = 0x80;
+			suspended = 0;
 		}
 		break;
 	default:
