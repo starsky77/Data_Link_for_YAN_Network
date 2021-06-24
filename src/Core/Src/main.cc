@@ -22,13 +22,13 @@
 #include "adc.h"
 #include "dma.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
-
-#include "Demod.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "Demod.h"
+#include "AX25_TNC_Rx.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +57,8 @@ int ADC2_Value[1];
 int ADC_buffer[ADC_BUFF_SIZE];
 int ADC_bufferCount=0;
 //uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
+
+AX25_TNC_Rx ax25Rx;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -139,14 +141,28 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM2_Init();
-  MX_TIM4_Init();
   MX_USART2_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim4);
   HAL_TIM_Base_Start(&htim4);
 //  HAL_ADCEx_Calibration_Start(&hadc1);
+  ax25Rx.DATA_Indication = [](const uint8_t *buf, size_t len) {
+	static char c[64];
+    sprintf(c, "Rx AX25 frame of len %d: ", len);
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)c, strlen(c));
+//    for (size_t i = 0; i < len; i++)
+//    {
+//      if (i % 12 == 0)
+//        putchar('\n');
+//      printf("%X, ", buf[i]);
+//    }
+//    putchar('\n');
+    return 0;
+  };
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -156,32 +172,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	 simpleLEDtest();
-	 if(endFlag)
-		 continue;
-	 if(demod.bufferFullFlag==1)
-	 {
-		char c[40];
-		sprintf(c, "FFT result:\r\n");
-		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-		for(int i=0;i<20;i++)
-		{
-			sprintf(c, "Result%d:Maxvalue:%d,MaxIndex:%d\r\n", i,(int)demod.resultBuffer[i*2],demod.resultBuffer[i*2+1]);
-			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-
-//			sprintf(c, "Result%d:index0:%d--index1:%d\r\n",i, demod.resultBuffer[i*6],
-//					demod.resultBuffer[i*6+1]);
-//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-//			sprintf(c, "Result%d:index2:%d--index3:%d\r\n",i, demod.resultBuffer[i*6+2],
-//					demod.resultBuffer[i*6+3]);
-//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-//			sprintf(c, "Result%d:index4:%d--index5:%d\r\n\r\n",i, demod.resultBuffer[i*6+4],
-//					demod.resultBuffer[i*6+5]);
-//			HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-		}
-		endFlag=1;
-	 }
-//	 UartTestOutput();
 
     /* USER CODE BEGIN 3 */
   }
@@ -229,9 +219,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_1);
-  HAL_RCC_MCOConfig(RCC_MCO2, RCC_MCO2SOURCE_PLLCLK, RCC_MCODIV_1);
 }
+
 /* USER CODE BEGIN 4 */
 
 
@@ -241,7 +230,7 @@ void TestADC() {
 		char c[32];
 		sprintf(c, "value%d:%d\r\n", i, ADC2_Value[i]);
 		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-		//高频率下用IT以及DMA在显示上会出现问题
+		//高频率下用IT以及DMA在显示上会出现问�?
 		//HAL_UART_Transmit_IT(&huart2, (uint8_t *)c, strlen(c));
 	}
 
@@ -265,7 +254,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 
 //	timeRecord1=SystemTimer();
-	//减少采样点的数量：32个有效采样点
+	//减少采样点的数量�?32个有效采样点
 //	for(int i=0;i<64;i++)
 //	{
 //		ADC2_Value[i]=(ADC2_Value[i*8]-699)*5;
@@ -277,6 +266,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 	if(ADC_bufferCount>=32)
 	{
 		demod.DSPFFTDemod(ADC_buffer);
+//		ax25Rx.Rx_symbol(demod.DSPFFTDemod(ADC_buffer));
 		ADC_bufferCount=0;
 	}
 

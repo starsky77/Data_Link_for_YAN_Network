@@ -34,6 +34,7 @@ uint32_t SystemTimer(void)//获取系统时间的函数
 }
 
 #define ADC_DEBUG
+#define TIMECOUNT
 
 class Demodulator {
 private:
@@ -140,15 +141,7 @@ public:
 			bufferFullFlag = 1;
 		}
 #endif
-		//通过测试：1200Hz的max_index为5-9，2200Hz的max_index为12-13
-		if(max_index<=10&&max_index>4)
-		{
-			return 1;
-		}
-		else if(max_index>=11&&max_index<15)
-		{
-			return 0;
-		}
+		return max_index <= 11; // 1200 Hz -> MARK
 	}
 
 
