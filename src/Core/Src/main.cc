@@ -53,8 +53,7 @@
 
 Demodulator demod(ADC_BUFF_SIZE,FFT_SAMPLE_SIZE,40800);
 
-int ADC2_Value[1];
-int ADC_buffer[ADC_BUFF_SIZE];
+int32_t ADC_buffer[2][ADC_BUFF_SIZE];
 int ADC_bufferCount=0;
 //uint32_t ADC_Buffer[FFT_SAMPLE_SIZE];
 
@@ -167,8 +166,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int endFlag=0;
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC2_Value, 1);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADC_buffer, 2 * ADC_BUFF_SIZE);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -225,66 +223,80 @@ void SystemClock_Config(void)
 
 
 
-void TestADC() {
-	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-		char c[32];
-		sprintf(c, "value%d:%d\r\n", i, ADC2_Value[i]);
-		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-		//高频率下用IT以及DMA在显示上会出现问�?
-		//HAL_UART_Transmit_IT(&huart2, (uint8_t *)c, strlen(c));
-	}
-
-	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-		ADC2_Value[i] = 0;
-	}
-
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-
-//	UartTestOutput();
-//	demod.FFTDemod(ADC2_Value);
+//void TestADC() {
+//	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
+//		char c[32];
+//		sprintf(c, "value%d:%d\r\n", i, ADC2_Value[i]);
+//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//		//高频率下用IT以及DMA在显示上会出现问�?
+//		//HAL_UART_Transmit_IT(&huart2, (uint8_t *)c, strlen(c));
+//	}
 //
 //	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
 //		ADC2_Value[i] = 0;
 //	}
-
-//	TestADC();
-
-
-//	timeRecord1=SystemTimer();
-	//减少采样点的数量�?32个有效采样点
-//	for(int i=0;i<64;i++)
-//	{
-//		ADC2_Value[i]=(ADC2_Value[i*8]-699)*5;
-//	}
-
-	ADC_buffer[ADC_bufferCount]=(ADC2_Value[0]-699)*5;
-	ADC_bufferCount++;
-
-	if(ADC_bufferCount>=32)
-	{
-		demod.DSPFFTDemod(ADC_buffer);
-//		ax25Rx.Rx_symbol(demod.DSPFFTDemod(ADC_buffer));
-		ADC_bufferCount=0;
-	}
-
-//	for(int i=0;i<64;i++)
-//	{
-//		ADC2_Value[i]=0;
-//	}
-
-//	timeRecord2=SystemTimer();
-//	int timepass=timeRecord2-timeRecord1;
 //
-//	char c[32];
-//	sprintf(c, "time cost %d us\r\n", timepass);
-//	HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//}
 
-
-
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
+	for (int i = 0; i < 32; ++i) {
+		ADC_buffer[0][i] = (ADC_buffer[0][i]-699) * 5;
+	}
+	ax25Rx.Rx_symbol(demod.DSPFFTDemod(ADC_buffer[0]));
 }
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+	for (int i = 0; i < 32; ++i) {
+		ADC_buffer[1][i] = (ADC_buffer[1][i]-699) * 5;
+	}
+	ax25Rx.Rx_symbol(demod.DSPFFTDemod(ADC_buffer[1]));
+}
+
+//void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+//{
+//
+////	UartTestOutput();
+////	demod.FFTDemod(ADC2_Value);
+////
+////	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
+////		ADC2_Value[i] = 0;
+////	}
+//
+////	TestADC();
+//
+//
+////	timeRecord1=SystemTimer();
+//	//减少采样点的数量�?32个有效采样点
+////	for(int i=0;i<64;i++)
+////	{
+////		ADC2_Value[i]=(ADC2_Value[i*8]-699)*5;
+////	}
+//
+//	ADC_buffer[ADC_bufferCount]=(ADC2_Value[0]-699)*5;
+//	ADC_bufferCount++;
+//
+//	if(ADC_bufferCount>=32)
+//	{
+//		demod.DSPFFTDemod(ADC_buffer);
+////
+//		ADC_bufferCount=0;
+//	}
+//
+////	for(int i=0;i<64;i++)
+////	{
+////		ADC2_Value[i]=0;
+////	}
+//
+////	timeRecord2=SystemTimer();
+////	int timepass=timeRecord2-timeRecord1;
+////
+////	char c[32];
+////	sprintf(c, "time cost %d us\r\n", timepass);
+////	HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
+//
+//
+//
+//}
 
 
 /* USER CODE END 4 */
