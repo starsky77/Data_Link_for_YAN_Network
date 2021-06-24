@@ -222,22 +222,6 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 
-
-//void TestADC() {
-//	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-//		char c[32];
-//		sprintf(c, "value%d:%d\r\n", i, ADC2_Value[i]);
-//		HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-//		//高频率下用IT以及DMA在显示上会出现问�?
-//		//HAL_UART_Transmit_IT(&huart2, (uint8_t *)c, strlen(c));
-//	}
-//
-//	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-//		ADC2_Value[i] = 0;
-//	}
-//
-//}
-
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) {
 	for (int i = 0; i < 32; ++i) {
 		ADC_buffer[0][i] = (ADC_buffer[0][i]-699) * 5;
@@ -251,52 +235,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	}
 	ax25Rx.Rx_symbol(demod.DSPFFTDemod(ADC_buffer[1]));
 }
-
-//void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-//{
-//
-////	UartTestOutput();
-////	demod.FFTDemod(ADC2_Value);
-////
-////	for (int i = 0; i < ADC_BUFF_SIZE; i++) {
-////		ADC2_Value[i] = 0;
-////	}
-//
-////	TestADC();
-//
-//
-////	timeRecord1=SystemTimer();
-//	//减少采样点的数量�?32个有效采样点
-////	for(int i=0;i<64;i++)
-////	{
-////		ADC2_Value[i]=(ADC2_Value[i*8]-699)*5;
-////	}
-//
-//	ADC_buffer[ADC_bufferCount]=(ADC2_Value[0]-699)*5;
-//	ADC_bufferCount++;
-//
-//	if(ADC_bufferCount>=32)
-//	{
-//		demod.DSPFFTDemod(ADC_buffer);
-////
-//		ADC_bufferCount=0;
-//	}
-//
-////	for(int i=0;i<64;i++)
-////	{
-////		ADC2_Value[i]=0;
-////	}
-//
-////	timeRecord2=SystemTimer();
-////	int timepass=timeRecord2-timeRecord1;
-////
-////	char c[32];
-////	sprintf(c, "time cost %d us\r\n", timepass);
-////	HAL_UART_Transmit(&huart2, (uint8_t*) c, strlen(c), 0xffff);
-//
-//
-//
-//}
 
 
 /* USER CODE END 4 */

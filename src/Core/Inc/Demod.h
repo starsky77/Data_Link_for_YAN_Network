@@ -27,10 +27,10 @@
 
 extern TIM_HandleTypeDef htim4;
 extern int timeCount;
-uint32_t SystemTimer(void)//获取系统时间的函数
+//use for time evaluation
+uint32_t SystemTimer(void)
 {
 	return (htim4.Instance->CNT + timeCount * 65535);
-	//系统时间=定时器当前计数值+65535*定时器中断次数
 }
 
 #define ADC_DEBUG
